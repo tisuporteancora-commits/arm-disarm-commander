@@ -10,12 +10,25 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as DocsRouteImport } from './routes/docs'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiSessionRouteImport } from './routes/api/session'
+import { Route as ApiDocsOpenapiDotjsonRouteImport } from './routes/api/docs/openapi[.]json'
+import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
+import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
+import { Route as ApiAlarmSettingsRouteImport } from './routes/api/alarm/settings'
+import { Route as ApiAlarmLogsRouteImport } from './routes/api/alarm/logs'
+import { Route as ApiAlarmCommandsRouteImport } from './routes/api/alarm/commands'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsRoute = DocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -28,35 +41,136 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSessionRoute = ApiSessionRouteImport.update({
+  id: '/api/session',
+  path: '/api/session',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDocsOpenapiDotjsonRoute = ApiDocsOpenapiDotjsonRouteImport.update({
+  id: '/api/docs/openapi.json',
+  path: '/api/docs/openapi.json',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthLogoutRoute = ApiAuthLogoutRouteImport.update({
+  id: '/api/auth/logout',
+  path: '/api/auth/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthLoginRoute = ApiAuthLoginRouteImport.update({
+  id: '/api/auth/login',
+  path: '/api/auth/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAlarmSettingsRoute = ApiAlarmSettingsRouteImport.update({
+  id: '/api/alarm/settings',
+  path: '/api/alarm/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAlarmLogsRoute = ApiAlarmLogsRouteImport.update({
+  id: '/api/alarm/logs',
+  path: '/api/alarm/logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAlarmCommandsRoute = ApiAlarmCommandsRouteImport.update({
+  id: '/api/alarm/commands',
+  path: '/api/alarm/commands',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/docs': typeof DocsRoute
   '/login': typeof LoginRoute
+  '/api/session': typeof ApiSessionRoute
+  '/api/alarm/commands': typeof ApiAlarmCommandsRoute
+  '/api/alarm/logs': typeof ApiAlarmLogsRoute
+  '/api/alarm/settings': typeof ApiAlarmSettingsRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/docs/openapi.json': typeof ApiDocsOpenapiDotjsonRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/docs': typeof DocsRoute
   '/login': typeof LoginRoute
+  '/api/session': typeof ApiSessionRoute
+  '/api/alarm/commands': typeof ApiAlarmCommandsRoute
+  '/api/alarm/logs': typeof ApiAlarmLogsRoute
+  '/api/alarm/settings': typeof ApiAlarmSettingsRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/docs/openapi.json': typeof ApiDocsOpenapiDotjsonRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/docs': typeof DocsRoute
   '/login': typeof LoginRoute
+  '/api/session': typeof ApiSessionRoute
+  '/api/alarm/commands': typeof ApiAlarmCommandsRoute
+  '/api/alarm/logs': typeof ApiAlarmLogsRoute
+  '/api/alarm/settings': typeof ApiAlarmSettingsRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/docs/openapi.json': typeof ApiDocsOpenapiDotjsonRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/login'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/docs'
+    | '/login'
+    | '/api/session'
+    | '/api/alarm/commands'
+    | '/api/alarm/logs'
+    | '/api/alarm/settings'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/docs/openapi.json'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/login'
-  id: '__root__' | '/' | '/admin' | '/login'
+  to:
+    | '/'
+    | '/admin'
+    | '/docs'
+    | '/login'
+    | '/api/session'
+    | '/api/alarm/commands'
+    | '/api/alarm/logs'
+    | '/api/alarm/settings'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/docs/openapi.json'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/docs'
+    | '/login'
+    | '/api/session'
+    | '/api/alarm/commands'
+    | '/api/alarm/logs'
+    | '/api/alarm/settings'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/docs/openapi.json'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  DocsRoute: typeof DocsRoute
   LoginRoute: typeof LoginRoute
+  ApiSessionRoute: typeof ApiSessionRoute
+  ApiAlarmCommandsRoute: typeof ApiAlarmCommandsRoute
+  ApiAlarmLogsRoute: typeof ApiAlarmLogsRoute
+  ApiAlarmSettingsRoute: typeof ApiAlarmSettingsRoute
+  ApiAuthLoginRoute: typeof ApiAuthLoginRoute
+  ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
+  ApiDocsOpenapiDotjsonRoute: typeof ApiDocsOpenapiDotjsonRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -66,6 +180,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs': {
+      id: '/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof DocsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -82,14 +203,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/session': {
+      id: '/api/session'
+      path: '/api/session'
+      fullPath: '/api/session'
+      preLoaderRoute: typeof ApiSessionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/docs/openapi.json': {
+      id: '/api/docs/openapi.json'
+      path: '/api/docs/openapi.json'
+      fullPath: '/api/docs/openapi.json'
+      preLoaderRoute: typeof ApiDocsOpenapiDotjsonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/logout': {
+      id: '/api/auth/logout'
+      path: '/api/auth/logout'
+      fullPath: '/api/auth/logout'
+      preLoaderRoute: typeof ApiAuthLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/login': {
+      id: '/api/auth/login'
+      path: '/api/auth/login'
+      fullPath: '/api/auth/login'
+      preLoaderRoute: typeof ApiAuthLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/alarm/settings': {
+      id: '/api/alarm/settings'
+      path: '/api/alarm/settings'
+      fullPath: '/api/alarm/settings'
+      preLoaderRoute: typeof ApiAlarmSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/alarm/logs': {
+      id: '/api/alarm/logs'
+      path: '/api/alarm/logs'
+      fullPath: '/api/alarm/logs'
+      preLoaderRoute: typeof ApiAlarmLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/alarm/commands': {
+      id: '/api/alarm/commands'
+      path: '/api/alarm/commands'
+      fullPath: '/api/alarm/commands'
+      preLoaderRoute: typeof ApiAlarmCommandsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  DocsRoute: DocsRoute,
   LoginRoute: LoginRoute,
+  ApiSessionRoute: ApiSessionRoute,
+  ApiAlarmCommandsRoute: ApiAlarmCommandsRoute,
+  ApiAlarmLogsRoute: ApiAlarmLogsRoute,
+  ApiAlarmSettingsRoute: ApiAlarmSettingsRoute,
+  ApiAuthLoginRoute: ApiAuthLoginRoute,
+  ApiAuthLogoutRoute: ApiAuthLogoutRoute,
+  ApiDocsOpenapiDotjsonRoute: ApiDocsOpenapiDotjsonRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

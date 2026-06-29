@@ -1,9 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ArrowLeft, LogOut, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
+
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -13,22 +17,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-import { ArrowLeft, LogOut, Plus, Trash2, RefreshCw } from "lucide-react";
 import {
-  clearLogs,
-  getCreds,
-  getLogs,
-  getSettings,
-  isAuthenticated,
-  saveCreds,
-  saveSettings,
-  setAuthenticated,
-  type Empresa,
-  type LogEntry,
-  type Settings,
-} from "@/lib/alarmStorage";
+  clearAlarmLogsFn,
+  getAdminStateFn,
+  saveAlarmSettingsFn,
+} from "@/features/alarm/alarm.functions";
+import type { AlarmLogEntry, AlarmSettings, Company } from "@/features/alarm/alarm.types";
+import { getSessionFn, logoutFn } from "@/features/auth/auth.functions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Administrador" }] }),
@@ -37,108 +33,166 @@ export const Route = createFileRoute("/admin")({
 
 function AdminPage() {
   const navigate = useNavigate();
-  const [settings, setSettings] = useState<Settings | null>(null);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [creds, setCreds] = useState({ username: "", password: "" });
+  const [settings, setSettings] = useState<AlarmSettings | null>(null);
+  const [logs, setLogs] = useState<AlarmLogEntry[]>([]);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated()) {
-      navigate({ to: "/login" });
-      return;
+    async function load() {
+      try {
+        const session = await getSessionFn();
+        if (!session.authenticated) {
+          navigate({ to: "/login" });
+          return;
+        }
+
+        const state = await getAdminStateFn();
+        setSettings(state.settings);
+        setLogs(state.logs);
+      } catch {
+        navigate({ to: "/login" });
+      }
     }
-    setSettings(getSettings());
-    setLogs(getLogs());
-    setCreds(getCreds());
+
+    void load();
   }, [navigate]);
 
   if (!settings) return null;
 
-  const updateEmpresa = (idx: number, field: keyof Empresa, value: string) => {
-    const empresas = [...settings.empresas];
-    empresas[idx] = { ...empresas[idx], [field]: value };
-    setSettings({ ...settings, empresas });
-  };
+  const successCount = logs.filter((log) => log.status === "SUCCESS").length;
+  const failedCount = logs.filter((log) => log.status === "FAILED").length;
+  const latestLog = logs[0];
 
-  const removeEmpresa = (idx: number) => {
-    const empresas = settings.empresas.filter((_, i) => i !== idx);
-    setSettings({ ...settings, empresas });
-  };
+  function updateCompany(index: number, field: keyof Company, value: string) {
+    const companies = [...settings.companies];
+    companies[index] = { ...companies[index], [field]: value };
+    setSettings({ ...settings, companies });
+  }
 
-  const addEmpresa = () => {
+  function removeCompany(index: number) {
+    const companies = settings.companies.filter((_, itemIndex) => itemIndex !== index);
+    setSettings({ ...settings, companies });
+  }
+
+  function addCompany() {
     setSettings({
       ...settings,
-      empresas: [...settings.empresas, { id: "", nome: "" }],
+      companies: [...settings.companies, { id: "", name: "" }],
     });
-  };
+  }
 
-  const salvar = () => {
-    if (!settings.ip.trim() || !settings.port.trim()) {
-      toast.error("IP e porta são obrigatórios.");
+  async function saveSettings() {
+    if (!settings.targetHost.trim() || !settings.targetPort.trim()) {
+      toast.error("IP e porta sao obrigatorios.");
       return;
     }
+
     const seen = new Set<string>();
-    for (const e of settings.empresas) {
-      if (!e.id.trim() || !e.nome.trim()) {
+    for (const company of settings.companies) {
+      if (!company.id.trim() || !company.name.trim()) {
         toast.error("Todas as empresas devem ter ID e nome.");
         return;
       }
-      if (seen.has(e.id)) {
-        toast.error(`ID duplicado: ${e.id}`);
+
+      if (seen.has(company.id)) {
+        toast.error(`ID duplicado: ${company.id}`);
         return;
       }
-      seen.add(e.id);
+
+      seen.add(company.id);
     }
-    saveSettings(settings);
-    toast.success("Configurações salvas.");
-  };
 
-  const salvarCreds = () => {
-    if (!creds.username.trim() || !creds.password.trim()) {
-      toast.error("Usuário e senha são obrigatórios.");
-      return;
+    setSaving(true);
+    try {
+      const saved = await saveAlarmSettingsFn({ data: settings });
+      setSettings(saved);
+      toast.success("Configuracoes salvas.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao salvar.";
+      toast.error(message);
+    } finally {
+      setSaving(false);
     }
-    saveCreds(creds);
-    toast.success("Credenciais atualizadas.");
-  };
+  }
 
-  const sair = () => {
-    setAuthenticated(false);
-    navigate({ to: "/" });
-  };
+  async function logout() {
+    await logoutFn();
+    navigate({ to: "/login" });
+  }
 
-  const recarregarLogs = () => setLogs(getLogs());
+  async function reloadLogs() {
+    const state = await getAdminStateFn();
+    setLogs(state.logs);
+  }
 
-  const limparLogs = () => {
-    if (confirm("Apagar todos os logs?")) {
-      clearLogs();
-      setLogs([]);
-    }
-  };
+  async function clearLogs() {
+    if (!confirm("Apagar todos os logs?")) return;
+
+    await clearAlarmLogsFn();
+    setLogs([]);
+  }
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
+    <div className="min-h-screen bg-background">
       <Toaster />
-      <div className="max-w-6xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
+      <header className="border-b bg-card/80">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <div className="flex items-center gap-3">
             <Link to="/">
               <Button variant="ghost" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
+                <ArrowLeft className="mr-1 h-4 w-4" /> Voltar
               </Button>
             </Link>
-            <h1 className="text-2xl font-semibold">Administrador</h1>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                Administracao
+              </p>
+              <h1 className="text-xl font-semibold">Painel do sistema</h1>
+            </div>
           </div>
-          <Button variant="outline" size="sm" onClick={sair}>
-            <LogOut className="h-4 w-4 mr-1" /> Sair
+          <Button variant="outline" size="sm" onClick={() => void logout()}>
+            <LogOut className="mr-1 h-4 w-4" /> Sair
           </Button>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:py-8">
+        <div className="grid gap-3 md:grid-cols-3">
+          <Card className="border-primary/20">
+            <CardContent className="p-4">
+              <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                Sucessos
+              </p>
+              <p className="mt-2 text-3xl font-semibold text-foreground">{successCount}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-destructive/20">
+            <CardContent className="p-4">
+              <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                Falhas
+              </p>
+              <p className="mt-2 text-3xl font-semibold text-destructive">{failedCount}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                Ultimo evento
+              </p>
+              <p className="mt-2 truncate text-lg font-semibold text-foreground">
+                {latestLog
+                  ? `${latestLog.command} / ${latestLog.client} / ${latestLog.status}`
+                  : "Sem registros"}
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         <Tabs defaultValue="logs">
           <TabsList>
             <TabsTrigger value="logs">Logs</TabsTrigger>
-            <TabsTrigger value="config">Configurações</TabsTrigger>
+            <TabsTrigger value="config">Configuracoes</TabsTrigger>
             <TabsTrigger value="empresas">Empresas</TabsTrigger>
-            <TabsTrigger value="conta">Conta</TabsTrigger>
           </TabsList>
 
           <TabsContent value="logs">
@@ -147,20 +201,20 @@ function AdminPage() {
                 <div>
                   <CardTitle>Logs de comandos</CardTitle>
                   <CardDescription>
-                    Últimos {logs.length} de no máximo 500 registros (os mais antigos são removidos).
+                    Ultimos {logs.length} de no maximo 500 registros, incluindo acertos e falhas.
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={recarregarLogs}>
-                    <RefreshCw className="h-4 w-4 mr-1" /> Recarregar
+                  <Button variant="outline" size="sm" onClick={() => void reloadLogs()}>
+                    <RefreshCw className="mr-1 h-4 w-4" /> Recarregar
                   </Button>
-                  <Button variant="destructive" size="sm" onClick={limparLogs}>
-                    <Trash2 className="h-4 w-4 mr-1" /> Limpar
+                  <Button variant="destructive" size="sm" onClick={() => void clearLogs()}>
+                    <Trash2 className="mr-1 h-4 w-4" /> Limpar
                   </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="border rounded-md overflow-hidden">
+                <div className="overflow-hidden rounded-md border">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -169,35 +223,41 @@ function AdminPage() {
                         <TableHead>Comando</TableHead>
                         <TableHead>Conta</TableHead>
                         <TableHead>Empresa</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>HTTP</TableHead>
+                        <TableHead>Detalhe</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {logs.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
+                          <TableCell colSpan={8} className="py-6 text-center text-muted-foreground">
                             Nenhum log registrado.
                           </TableCell>
                         </TableRow>
                       ) : (
-                        logs.map((l) => (
-                          <TableRow key={l.id}>
+                        logs.map((log) => (
+                          <TableRow key={log.id}>
                             <TableCell className="whitespace-nowrap">
-                              {new Date(l.timestamp).toLocaleString("pt-BR")}
+                              {new Date(log.timestamp).toLocaleString("pt-BR")}
                             </TableCell>
-                            <TableCell>{l.operator}</TableCell>
+                            <TableCell>{log.operator}</TableCell>
                             <TableCell>
-                              <span
-                                className={
-                                  l.command === "ARMAR"
-                                    ? "font-medium text-foreground"
-                                    : "font-medium text-destructive"
-                                }
-                              >
-                                {l.command}
-                              </span>
+                              <Badge variant={log.command === "ARMAR" ? "default" : "secondary"}>
+                                {log.command}
+                              </Badge>
                             </TableCell>
-                            <TableCell className="font-mono">{l.client}</TableCell>
-                            <TableCell>{l.empresaNome}</TableCell>
+                            <TableCell className="font-mono">{log.client}</TableCell>
+                            <TableCell>{log.companyName}</TableCell>
+                            <TableCell>
+                              <Badge variant={log.status === "SUCCESS" ? "outline" : "destructive"}>
+                                {log.status === "SUCCESS" ? "Enviado" : "Falhou"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-mono">{log.httpStatus ?? "-"}</TableCell>
+                            <TableCell className="max-w-[280px] truncate text-sm text-muted-foreground">
+                              {log.errorMessage ?? log.url}
+                            </TableCell>
                           </TableRow>
                         ))
                       )}
@@ -213,29 +273,36 @@ function AdminPage() {
               <CardHeader>
                 <CardTitle>IP e porta do comando HTTP</CardTitle>
                 <CardDescription>
-                  URL gerada: http://{settings.ip}:{settings.port}/api/v1/events?...
+                  URL gerada no servidor: http://{settings.targetHost}:{settings.targetPort}
+                  /api/v1/events?...
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="ip">IP</Label>
                     <Input
                       id="ip"
-                      value={settings.ip}
-                      onChange={(e) => setSettings({ ...settings, ip: e.target.value })}
+                      value={settings.targetHost}
+                      onChange={(event) =>
+                        setSettings({ ...settings, targetHost: event.target.value })
+                      }
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="port">Porta</Label>
                     <Input
                       id="port"
-                      value={settings.port}
-                      onChange={(e) => setSettings({ ...settings, port: e.target.value })}
+                      value={settings.targetPort}
+                      onChange={(event) =>
+                        setSettings({ ...settings, targetPort: event.target.value })
+                      }
                     />
                   </div>
                 </div>
-                <Button onClick={salvar}>Salvar configurações</Button>
+                <Button onClick={() => void saveSettings()} disabled={saving}>
+                  {saving ? "Salvando..." : "Salvar configuracoes"}
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
@@ -246,77 +313,48 @@ function AdminPage() {
                 <div>
                   <CardTitle>Empresas</CardTitle>
                   <CardDescription>
-                    O ID é o valor do parâmetro <code>organization</code> da URL.
+                    O ID e o valor do parametro <code>organization</code> da URL.
                   </CardDescription>
                 </div>
-                <Button size="sm" variant="outline" onClick={addEmpresa}>
-                  <Plus className="h-4 w-4 mr-1" /> Adicionar
+                <Button size="sm" variant="outline" onClick={addCompany}>
+                  <Plus className="mr-1 h-4 w-4" /> Adicionar
                 </Button>
               </CardHeader>
               <CardContent className="space-y-3">
-                {settings.empresas.map((e, idx) => (
-                  <div key={idx} className="flex items-end gap-2">
+                {settings.companies.map((company, index) => (
+                  <div key={`${company.id}-${index}`} className="flex items-end gap-2">
                     <div className="w-24 space-y-2">
                       <Label>ID</Label>
                       <Input
-                        value={e.id}
-                        onChange={(ev) => updateEmpresa(idx, "id", ev.target.value)}
+                        value={company.id}
+                        onChange={(event) => updateCompany(index, "id", event.target.value)}
                       />
                     </div>
                     <div className="flex-1 space-y-2">
                       <Label>Nome</Label>
                       <Input
-                        value={e.nome}
-                        onChange={(ev) => updateEmpresa(idx, "nome", ev.target.value)}
+                        value={company.name}
+                        onChange={(event) => updateCompany(index, "name", event.target.value)}
                       />
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => removeEmpresa(idx)}
+                      onClick={() => removeCompany(index)}
                       aria-label="Remover"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 ))}
-                <Button onClick={salvar}>Salvar empresas</Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="conta">
-            <Card>
-              <CardHeader>
-                <CardTitle>Credenciais do administrador</CardTitle>
-                <CardDescription>
-                  Armazenadas localmente no navegador. Não compartilhe este dispositivo.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 max-w-sm">
-                <div className="space-y-2">
-                  <Label htmlFor="u">Usuário</Label>
-                  <Input
-                    id="u"
-                    value={creds.username}
-                    onChange={(e) => setCreds({ ...creds, username: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="p">Senha</Label>
-                  <Input
-                    id="p"
-                    type="password"
-                    value={creds.password}
-                    onChange={(e) => setCreds({ ...creds, password: e.target.value })}
-                  />
-                </div>
-                <Button onClick={salvarCreds}>Atualizar credenciais</Button>
+                <Button onClick={() => void saveSettings()} disabled={saving}>
+                  {saving ? "Salvando..." : "Salvar empresas"}
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
+      </main>
     </div>
   );
 }
