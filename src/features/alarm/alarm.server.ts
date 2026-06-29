@@ -79,8 +79,27 @@ function commandIdentification(command: AlarmCommand): "E" | "R" {
   return command === "ARMAR" ? "R" : "E";
 }
 
+function buildTargetBaseUrl(settings: AlarmSettings): URL {
+  const targetHost = settings.targetHost.trim();
+  const targetPort = settings.targetPort.trim();
+  const targetWithProtocol = /^[a-z][a-z0-9+.-]*:\/\//i.test(targetHost)
+    ? targetHost
+    : `http://${targetHost}`;
+  const baseUrl = new URL(targetWithProtocol);
+
+  if (targetPort) {
+    baseUrl.port = targetPort;
+  }
+
+  baseUrl.pathname = "/";
+  baseUrl.search = "";
+  baseUrl.hash = "";
+
+  return baseUrl;
+}
+
 function buildCommandUrl(settings: AlarmSettings, input: AlarmCommandInput): string {
-  const url = new URL("/api/v1/events", `http://${settings.targetHost}:${settings.targetPort}`);
+  const url = new URL("/api/v1/events", buildTargetBaseUrl(settings));
   url.searchParams.set("client", input.client);
   url.searchParams.set("partition", "01");
   url.searchParams.set("organization", input.organization);
@@ -88,6 +107,25 @@ function buildCommandUrl(settings: AlarmSettings, input: AlarmCommandInput): str
   url.searchParams.set("identification", commandIdentification(input.command));
   url.searchParams.set("sector", "120");
   return url.toString();
+}
+
+function describeDispatchError(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return "Erro desconhecido.";
+  }
+
+  const cause = "cause" in error ? error.cause : undefined;
+  if (cause != null && typeof cause === "object" && "code" in cause) {
+    const code = String(cause.code);
+    const message = "message" in cause ? String(cause.message) : error.message;
+    return `Falha ao acessar a central (${code}): ${message}`;
+  }
+
+  if (error.message === "fetch failed") {
+    return "Falha ao acessar a central. Verifique host, porta e conectividade.";
+  }
+
+  return error.message;
 }
 
 async function addLog(entry: Omit<AlarmLogEntry, "id" | "timestamp">): Promise<void> {
@@ -141,10 +179,12 @@ export async function dispatchAlarmCommand(input: AlarmCommandInput): Promise<Al
     throw new Error("Empresa nao encontrada.");
   }
 
-  const url = buildCommandUrl(state.settings, input);
+  let url = "URL invalida";
   let httpStatus: number | undefined;
 
   try {
+    url = buildCommandUrl(state.settings, input);
+
     const response = await fetch(url, {
       method: "GET",
       signal: AbortSignal.timeout(10_000),
@@ -176,7 +216,7 @@ export async function dispatchAlarmCommand(input: AlarmCommandInput): Promise<Al
       httpStatus,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Erro desconhecido.";
+    const errorMessage = describeDispatchError(error);
 
     await addLog({
       operator: input.operator.trim(),

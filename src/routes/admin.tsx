@@ -271,16 +271,15 @@ function AdminPage() {
           <TabsContent value="config">
             <Card>
               <CardHeader>
-                <CardTitle>IP e porta do comando HTTP</CardTitle>
+                <CardTitle>Host/URL e porta do comando HTTP</CardTitle>
                 <CardDescription>
-                  URL gerada no servidor: http://{settings.targetHost}:{settings.targetPort}
-                  /api/v1/events?...
+                  Destino configurado: {settings.targetHost}:{settings.targetPort}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="ip">IP</Label>
+                    <Label htmlFor="ip">Host ou URL</Label>
                     <Input
                       id="ip"
                       value={settings.targetHost}
