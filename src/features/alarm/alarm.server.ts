@@ -128,6 +128,25 @@ function describeDispatchError(error: unknown): string {
   return error.message;
 }
 
+async function buildHttpErrorMessage(response: Response): Promise<string> {
+  const responseBody = await response
+    .clone()
+    .text()
+    .then((body) => body.trim())
+    .catch(() => "");
+
+  const statusMessage =
+    response.status === 401
+      ? "Central recusou o comando: nao autorizado."
+      : `Central respondeu com HTTP ${response.status}.`;
+
+  if (!responseBody) {
+    return statusMessage;
+  }
+
+  return `${statusMessage} Detalhe: ${responseBody.slice(0, 500)}`;
+}
+
 async function addLog(entry: Omit<AlarmLogEntry, "id" | "timestamp">): Promise<void> {
   const state = await readState();
   const logEntry: AlarmLogEntry = {
@@ -193,7 +212,7 @@ export async function dispatchAlarmCommand(input: AlarmCommandInput): Promise<Al
     httpStatus = response.status;
 
     if (!response.ok) {
-      throw new Error(`Central respondeu com HTTP ${response.status}.`);
+      throw new Error(await buildHttpErrorMessage(response));
     }
 
     await addLog({
