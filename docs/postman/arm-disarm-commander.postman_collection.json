@@ -1,0 +1,226 @@
+{
+  "info": {
+    "name": "Arm Disarm Commander",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8080"
+    },
+    {
+      "key": "username",
+      "value": "admin"
+    },
+    {
+      "key": "password",
+      "value": "change-me"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{baseUrl}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Current Session",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/session",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "session"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{baseUrl}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Alarm",
+      "item": [
+        {
+          "name": "Get Settings",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/alarm/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "alarm", "settings"]
+            }
+          }
+        },
+        {
+          "name": "Save Settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{baseUrl}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetHost\": \"192.168.0.120\",\n  \"targetPort\": \"9000\",\n  \"companies\": [\n    {\n      \"id\": \"3\",\n      \"name\": \"ANCORA SEGURANCA\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/alarm/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "alarm", "settings"]
+            }
+          }
+        },
+        {
+          "name": "Send Arm Command",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{baseUrl}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"operator\": \"Alison\",\n  \"client\": \"1234\",\n  \"organization\": \"3\",\n  \"command\": \"ARMAR\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/alarm/commands",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "alarm", "commands"]
+            }
+          }
+        },
+        {
+          "name": "Send Disarm Command",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{baseUrl}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"operator\": \"Alison\",\n  \"client\": \"1234\",\n  \"organization\": \"3\",\n  \"command\": \"DESARMAR\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/alarm/commands",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "alarm", "commands"]
+            }
+          }
+        },
+        {
+          "name": "Get Logs",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/alarm/logs",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "alarm", "logs"]
+            }
+          }
+        },
+        {
+          "name": "Clear Logs",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{baseUrl}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/alarm/logs",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "alarm", "logs"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Docs",
+      "item": [
+        {
+          "name": "OpenAPI JSON",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/docs/openapi.json",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "docs", "openapi.json"]
+            }
+          }
+        },
+        {
+          "name": "Swagger UI",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/docs",
+              "host": ["{{baseUrl}}"],
+              "path": ["docs"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
