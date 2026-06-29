@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,9 +13,15 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Lock, Unlock, Info } from "lucide-react";
+import { Lock, Unlock, Info, Settings as SettingsIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
+import {
+  addLog,
+  buildCommandUrl,
+  getSettings,
+  type Settings,
+} from "@/lib/alarmStorage";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -28,28 +35,22 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const EMPRESAS = [
-  { id: "3", nome: "ANCORA SEGURANÇA" },
-  { id: "4", nome: "CI SISTEMAS" },
-  { id: "5", nome: "EDINHO ALARMES" },
-  { id: "6", nome: "NF MONITORAMENTO" },
-  { id: "7", nome: "PROTEJA" },
-  { id: "8", nome: "2001 TELECOMUNICAÇÕES" },
-  { id: "9", nome: "MSEG" },
-  { id: "10", nome: "ELITE MONITORAMENTO" },
-  { id: "11", nome: "MRE SEGURANÇA" },
-  { id: "12", nome: "GTX TECHNOLOGY" },
-  { id: "13", nome: "E-BADAN" },
-  { id: "14", nome: "BLETEC" },
-  { id: "15", nome: "TELEALARME" },
-];
-
 function Index() {
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [operator, setOperator] = useState("");
   const [client, setClient] = useState("");
   const [organization, setOrganization] = useState("");
   const [loading, setLoading] = useState<"E" | "R" | null>(null);
 
+  useEffect(() => {
+    setSettings(getSettings());
+  }, []);
+
   const enviar = async (identification: "E" | "R") => {
+    if (!operator.trim()) {
+      toast.error("Informe o nome do operador.");
+      return;
+    }
     if (!/^\d{4}$/.test(client)) {
       toast.error("A conta do cliente deve ter exatamente 4 dígitos.");
       return;
@@ -58,16 +59,28 @@ function Index() {
       toast.error("Selecione a empresa.");
       return;
     }
+    if (!settings) return;
 
-    const url = `http://192.168.0.120:9000/api/v1/events?client=${encodeURIComponent(
+    const url = buildCommandUrl({
+      ip: settings.ip,
+      port: settings.port,
       client,
-    )}&partition=01&organization=${encodeURIComponent(
       organization,
-    )}&occurrence=401&identification=${identification}&sector=120`;
+      identification,
+    });
+    const empresa = settings.empresas.find((e) => e.id === organization);
 
     setLoading(identification);
     try {
       await fetch(url, { method: "GET", mode: "no-cors" });
+      addLog({
+        operator: operator.trim(),
+        client,
+        empresaId: organization,
+        empresaNome: empresa?.nome ?? organization,
+        command: identification === "R" ? "ARMAR" : "DESARMAR",
+        url,
+      });
       toast.success(
         identification === "R"
           ? `Comando de ARME enviado (conta ${client}).`
@@ -80,15 +93,24 @@ function Index() {
     }
   };
 
+  if (!settings) return null;
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Toaster />
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Arme & Desarme Remoto</CardTitle>
-          <CardDescription>
-            Envie comandos para a central de monitoramento via HTTP.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+          <div className="space-y-1.5">
+            <CardTitle className="text-2xl">Arme & Desarme Remoto</CardTitle>
+            <CardDescription>
+              Envie comandos para a central de monitoramento via HTTP.
+            </CardDescription>
+          </div>
+          <Link to="/login">
+            <Button variant="outline" size="icon" aria-label="Administrador">
+              <SettingsIcon className="h-4 w-4" />
+            </Button>
+          </Link>
         </CardHeader>
         <CardContent className="space-y-5">
           <Alert>
@@ -97,6 +119,16 @@ function Index() {
               Este sistema funciona somente para clientes que possuem somente analíticos.
             </AlertDescription>
           </Alert>
+
+          <div className="space-y-2">
+            <Label htmlFor="operator">Nome do operador *</Label>
+            <Input
+              id="operator"
+              placeholder="Seu nome"
+              value={operator}
+              onChange={(e) => setOperator(e.target.value)}
+            />
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="client">Conta do cliente (4 dígitos)</Label>
@@ -117,7 +149,7 @@ function Index() {
                 <SelectValue placeholder="Selecione a empresa" />
               </SelectTrigger>
               <SelectContent>
-                {EMPRESAS.map((e) => (
+                {settings.empresas.map((e) => (
                   <SelectItem key={e.id} value={e.id}>
                     {e.nome}
                   </SelectItem>
