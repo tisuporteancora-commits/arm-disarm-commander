@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, LogOut, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { ArrowLeft, LogOut, Moon, Plus, RefreshCw, Search, Sun, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -24,7 +31,7 @@ import {
   saveAlarmSettingsFn,
 } from "@/features/alarm/alarm.functions";
 import type { AlarmLogEntry, AlarmSettings, Company } from "@/features/alarm/alarm.types";
-import { getSessionFn, logoutFn } from "@/features/auth/auth.functions";
+import { getSessionFn, logoutFn, updateCredentialsFn } from "@/features/auth/auth.functions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Administrador" }] }),
@@ -37,6 +44,35 @@ function AdminPage() {
   const [logs, setLogs] = useState<AlarmLogEntry[]>([]);
   const [saving, setSaving] = useState(false);
 
+  // Theme states
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
+
+    const handleThemeChange = () => {
+      setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
+    };
+
+    window.addEventListener("theme-change", handleThemeChange);
+    return () => window.removeEventListener("theme-change", handleThemeChange);
+  }, []);
+
+  const toggleTheme = () => {
+    const isDark = document.documentElement.classList.toggle("dark");
+    localStorage.theme = isDark ? "dark" : "light";
+    window.dispatchEvent(new Event("theme-change"));
+  };
+
+  // Filter States
+  const [clientFilter, setClientFilter] = useState("");
+  const [companyFilter, setCompanyFilter] = useState("ALL");
+
+  // Credentials States
+  const [newUsername, setNewUsername] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [savingCredentials, setSavingCredentials] = useState(false);
+
   useEffect(() => {
     async function load() {
       try {
@@ -44,6 +80,10 @@ function AdminPage() {
         if (!session.authenticated) {
           navigate({ to: "/login" });
           return;
+        }
+
+        if (session.username) {
+          setNewUsername(session.username);
         }
 
         const state = await getAdminStateFn();
@@ -56,6 +96,29 @@ function AdminPage() {
 
     void load();
   }, [navigate]);
+
+  async function handleUpdateCredentials() {
+    if (!newUsername.trim()) {
+      toast.error("O nome de usuario nao pode estar vazio.");
+      return;
+    }
+    setSavingCredentials(true);
+    try {
+      await updateCredentialsFn({
+        data: {
+          username: newUsername.trim(),
+          password: newPassword,
+        },
+      });
+      toast.success("Credenciais de acesso alteradas com sucesso.");
+      setNewPassword("");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao alterar credenciais.";
+      toast.error(message);
+    } finally {
+      setSavingCredentials(false);
+    }
+  }
 
   if (!settings) return null;
 
@@ -150,9 +213,20 @@ function AdminPage() {
               <h1 className="text-xl font-semibold">Painel do sistema</h1>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={() => void logout()}>
-            <LogOut className="mr-1 h-4 w-4" /> Sair
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={toggleTheme}
+              aria-label="Alternar tema"
+              className="h-9 w-9"
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => void logout()}>
+              <LogOut className="mr-1 h-4 w-4" /> Sair
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -193,6 +267,7 @@ function AdminPage() {
             <TabsTrigger value="logs">Logs</TabsTrigger>
             <TabsTrigger value="config">Configuracoes</TabsTrigger>
             <TabsTrigger value="empresas">Empresas</TabsTrigger>
+            <TabsTrigger value="acesso">Acesso</TabsTrigger>
           </TabsList>
 
           <TabsContent value="logs">
@@ -201,7 +276,15 @@ function AdminPage() {
                 <div>
                   <CardTitle>Logs de comandos</CardTitle>
                   <CardDescription>
-                    Ultimos {logs.length} de no maximo 500 registros, incluindo acertos e falhas.
+                    Mostrando {
+                      logs.filter((log) => {
+                        const matchesClient =
+                          clientFilter.trim() === "" ||
+                          log.client.toLowerCase().includes(clientFilter.toLowerCase());
+                        const matchesCompany = companyFilter === "ALL" || log.companyId === companyFilter;
+                        return matchesClient && matchesCompany;
+                      }).length
+                    } de {logs.length} de no maximo 500 registros, incluindo acertos e falhas.
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
@@ -213,7 +296,39 @@ function AdminPage() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col gap-4 md:flex-row md:items-end">
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="search-client">Conta do cliente</Label>
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="search-client"
+                        placeholder="Filtrar por conta..."
+                        className="pl-8"
+                        value={clientFilter}
+                        onChange={(event) => setClientFilter(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="w-full md:w-64 space-y-2">
+                    <Label>Empresa</Label>
+                    <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todas as empresas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">Todas as empresas</SelectItem>
+                        {settings.companies.map((company) => (
+                          <SelectItem key={company.id} value={company.id}>
+                            {company.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
                 <div className="overflow-hidden rounded-md border">
                   <Table>
                     <TableHeader>
@@ -229,37 +344,51 @@ function AdminPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {logs.length === 0 ? (
+                      {logs.filter((log) => {
+                        const matchesClient =
+                          clientFilter.trim() === "" ||
+                          log.client.toLowerCase().includes(clientFilter.toLowerCase());
+                        const matchesCompany = companyFilter === "ALL" || log.companyId === companyFilter;
+                        return matchesClient && matchesCompany;
+                      }).length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={8} className="py-6 text-center text-muted-foreground">
-                            Nenhum log registrado.
+                            Nenhum log encontrado para os filtros selecionados.
                           </TableCell>
                         </TableRow>
                       ) : (
-                        logs.map((log) => (
-                          <TableRow key={log.id}>
-                            <TableCell className="whitespace-nowrap">
-                              {new Date(log.timestamp).toLocaleString("pt-BR")}
-                            </TableCell>
-                            <TableCell>{log.operator}</TableCell>
-                            <TableCell>
-                              <Badge variant={log.command === "ARMAR" ? "default" : "secondary"}>
-                                {log.command}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="font-mono">{log.client}</TableCell>
-                            <TableCell>{log.companyName}</TableCell>
-                            <TableCell>
-                              <Badge variant={log.status === "SUCCESS" ? "outline" : "destructive"}>
-                                {log.status === "SUCCESS" ? "Enviado" : "Falhou"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="font-mono">{log.httpStatus ?? "-"}</TableCell>
-                            <TableCell className="max-w-[280px] truncate text-sm text-muted-foreground">
-                              {log.errorMessage ?? log.url}
-                            </TableCell>
-                          </TableRow>
-                        ))
+                        logs
+                          .filter((log) => {
+                            const matchesClient =
+                              clientFilter.trim() === "" ||
+                              log.client.toLowerCase().includes(clientFilter.toLowerCase());
+                            const matchesCompany = companyFilter === "ALL" || log.companyId === companyFilter;
+                            return matchesClient && matchesCompany;
+                          })
+                          .map((log) => (
+                            <TableRow key={log.id}>
+                              <TableCell className="whitespace-nowrap">
+                                {new Date(log.timestamp).toLocaleString("pt-BR")}
+                              </TableCell>
+                              <TableCell>{log.operator}</TableCell>
+                              <TableCell>
+                                <Badge variant={log.command === "ARMAR" ? "default" : "secondary"}>
+                                  {log.command}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="font-mono">{log.client}</TableCell>
+                              <TableCell>{log.companyName}</TableCell>
+                              <TableCell>
+                                <Badge variant={log.status === "SUCCESS" ? "outline" : "destructive"}>
+                                  {log.status === "SUCCESS" ? "Enviado" : "Falhou"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="font-mono">{log.httpStatus ?? "-"}</TableCell>
+                              <TableCell className="max-w-[280px] truncate text-sm text-muted-foreground">
+                                {log.errorMessage ?? log.url}
+                              </TableCell>
+                            </TableRow>
+                          ))
                       )}
                     </TableBody>
                   </Table>
@@ -348,6 +477,42 @@ function AdminPage() {
                 ))}
                 <Button onClick={() => void saveSettings()} disabled={saving}>
                   {saving ? "Salvando..." : "Salvar empresas"}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="acesso">
+            <Card>
+              <CardHeader>
+                <CardTitle>Alterar login e senha</CardTitle>
+                <CardDescription>
+                  Altere as credenciais de acesso do painel de administracao.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="new-username">Novo usuario</Label>
+                    <Input
+                      id="new-username"
+                      value={newUsername}
+                      onChange={(event) => setNewUsername(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="new-password">Nova senha</Label>
+                    <Input
+                      id="new-password"
+                      type="password"
+                      placeholder="Deixe em branco para nao alterar"
+                      value={newPassword}
+                      onChange={(event) => setNewPassword(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <Button onClick={() => void handleUpdateCredentials()} disabled={savingCredentials}>
+                  {savingCredentials ? "Salvando..." : "Salvar credenciais"}
                 </Button>
               </CardContent>
             </Card>

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Lock, Settings as SettingsIcon, ShieldCheck, Unlock } from "lucide-react";
+import { AlertTriangle, Calendar, Clock, Lock, Moon, Settings as SettingsIcon, ShieldCheck, Sun, Trash2, Unlock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -15,9 +15,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Toaster } from "@/components/ui/sonner";
-import { getCommandCompaniesFn, sendAlarmCommandFn } from "@/features/alarm/alarm.functions";
-import type { AlarmCommand, Company } from "@/features/alarm/alarm.types";
-import { getSessionFn } from "@/features/auth/auth.functions";
+import {
+  createAlarmScheduleFn,
+  deleteAlarmScheduleFn,
+  getAlarmSchedulesFn,
+  getCommandCompaniesFn,
+  sendAlarmCommandFn,
+} from "@/features/alarm/alarm.functions";
+import type { AlarmCommand, AlarmSchedule, Company } from "@/features/alarm/alarm.types";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -46,25 +51,61 @@ function Index() {
   const [organization, setOrganization] = useState("");
   const [loading, setLoading] = useState<AlarmCommand | null>(null);
 
+  // Theme states
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
+
+    const handleThemeChange = () => {
+      setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
+    };
+
+    window.addEventListener("theme-change", handleThemeChange);
+    return () => window.removeEventListener("theme-change", handleThemeChange);
+  }, []);
+
+  const toggleTheme = () => {
+    const isDark = document.documentElement.classList.toggle("dark");
+    localStorage.theme = isDark ? "dark" : "light";
+    window.dispatchEvent(new Event("theme-change"));
+  };
+
+  // Scheduling states
+  const [schedules, setSchedules] = useState<AlarmSchedule[]>([]);
+  const [scheduleDateTime, setScheduleDateTime] = useState("");
+  const [scheduling, setScheduling] = useState<AlarmCommand | null>(null);
+
+  async function loadSchedules() {
+    try {
+      const data = await getAlarmSchedulesFn();
+      setSchedules(data);
+    } catch {
+      console.error("Erro ao carregar agendamentos.");
+    }
+  }
+
   useEffect(() => {
     async function load() {
       try {
-        const session = await getSessionFn();
-        if (!session.authenticated) {
-          navigate({ to: "/login" });
-          return;
-        }
-
         setCompanies(await getCommandCompaniesFn());
+        await loadSchedules();
       } catch {
-        navigate({ to: "/login" });
+        toast.error("Erro ao carregar as empresas.");
       } finally {
         setInitializing(false);
       }
     }
 
     void load();
-  }, [navigate]);
+
+    // Poll schedules every 10 seconds to sync with server execution
+    const interval = setInterval(() => {
+      void loadSchedules();
+    }, 10_000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   async function sendCommand(command: AlarmCommand) {
     if (!operator.trim()) {
@@ -106,6 +147,64 @@ function Index() {
     }
   }
 
+  async function scheduleCommand(command: AlarmCommand) {
+    if (!operator.trim()) {
+      toast.error("Informe o nome do operador.");
+      return;
+    }
+
+    if (!/^\d{4}$/.test(client)) {
+      toast.error("A conta do cliente deve ter exatamente 4 digitos.");
+      return;
+    }
+
+    if (!organization) {
+      toast.error("Selecione a empresa.");
+      return;
+    }
+
+    if (!scheduleDateTime) {
+      toast.error("Selecione a data e o horario da acao.");
+      return;
+    }
+
+    const company = companies.find((c) => c.id === organization);
+    if (!company) return;
+
+    setScheduling(command);
+    try {
+      await createAlarmScheduleFn({
+        data: {
+          operator: operator.trim(),
+          client,
+          organization,
+          companyName: company.name,
+          command,
+          datetime: scheduleDateTime,
+        },
+      });
+
+      toast.success(`Agendamento de ${command} cadastrado com sucesso.`);
+      setScheduleDateTime("");
+      await loadSchedules();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao criar agendamento.";
+      toast.error(message);
+    } finally {
+      setScheduling(null);
+    }
+  }
+
+  async function deleteSchedule(id: string) {
+    try {
+      await deleteAlarmScheduleFn({ data: { id } });
+      toast.success("Agendamento excluido.");
+      await loadSchedules();
+    } catch {
+      toast.error("Falha ao excluir agendamento.");
+    }
+  }
+
   if (initializing) return null;
 
   return (
@@ -113,22 +212,50 @@ function Index() {
       <Toaster />
       <header className="border-b bg-card/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-              Operacao remota
-            </p>
-            <h1 className="text-xl font-semibold text-foreground">Arme & Desarme</h1>
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo-ancora.png"
+              alt="Âncora Segurança Patrimonial"
+              className="h-12 w-auto"
+            />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                Operacao remota
+              </p>
+              <h1 className="text-xl font-semibold text-foreground">Arme & Desarme</h1>
+            </div>
           </div>
-          <Link to="/admin">
-            <Button variant="outline" size="icon" aria-label="Administrador">
-              <SettingsIcon className="h-4 w-4" />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={toggleTheme}
+              aria-label="Alternar tema"
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
-          </Link>
+            <Link to="/admin">
+              <Button variant="outline" size="icon" aria-label="Administrador">
+                <SettingsIcon className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto grid min-h-[calc(100vh-73px)] max-w-6xl items-center gap-6 px-4 py-8 lg:grid-cols-[0.9fr_1.1fr]">
-        <section className="space-y-6">
+      <div className="mx-auto max-w-6xl px-4 pt-4">
+        <div className="flex items-start gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-black">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+          <p className="font-semibold">
+            Atenção: Este comando funciona somente em clientes que possuem apenas
+            analítico.
+          </p>
+        </div>
+      </div>
+
+      <main className="mx-auto grid min-h-[calc(100vh-73px)] max-w-6xl items-start gap-6 px-4 py-8 lg:grid-cols-[0.75fr_1.1fr_1.15fr]">
+        {/* Coluna 1: Informacoes */}
+        <section className="space-y-6 lg:sticky lg:top-4">
           <div className="inline-flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm font-medium text-foreground shadow-sm">
             <ShieldCheck className="h-4 w-4 text-primary" />
             Comando autenticado no servidor
@@ -158,6 +285,7 @@ function Index() {
           </div>
         </section>
 
+        {/* Coluna 2: Painel de Comando */}
         <Card className="overflow-hidden border-primary/20 shadow-lg shadow-primary/10">
           <div className="border-b bg-primary px-6 py-5 text-primary-foreground">
             <p className="text-sm font-medium opacity-90">Painel de comando</p>
@@ -204,26 +332,131 @@ function Index() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <Button
-                className="h-14 text-base"
-                variant="default"
-                disabled={loading !== null}
-                onClick={() => void sendCommand("ARMAR")}
-              >
-                <Lock className="mr-2 h-5 w-5" />
-                {loading === "ARMAR" ? "Enviando..." : "Armar"}
-              </Button>
-              <Button
-                className="h-14 border-primary/30 bg-accent text-accent-foreground hover:bg-accent/85"
-                variant="outline"
-                disabled={loading !== null}
-                onClick={() => void sendCommand("DESARMAR")}
-              >
-                <Unlock className="mr-2 h-5 w-5" />
-                {loading === "DESARMAR" ? "Enviando..." : "Desarmar"}
-              </Button>
+            <div className="space-y-1 pt-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Execucao imediata
+              </span>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  className="h-12 text-sm"
+                  variant="default"
+                  disabled={loading !== null || scheduling !== null}
+                  onClick={() => void sendCommand("ARMAR")}
+                >
+                  <Lock className="mr-2 h-4 w-4" />
+                  {loading === "ARMAR" ? "Enviando..." : "Armar"}
+                </Button>
+                <Button
+                  className="h-12 border-primary/30 bg-accent text-accent-foreground hover:bg-accent/85 text-sm"
+                  variant="outline"
+                  disabled={loading !== null || scheduling !== null}
+                  onClick={() => void sendCommand("DESARMAR")}
+                >
+                  <Unlock className="mr-2 h-4 w-4" />
+                  {loading === "DESARMAR" ? "Enviando..." : "Desarmar"}
+                </Button>
+              </div>
             </div>
+
+            <div className="border-t pt-4 space-y-4">
+              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Agendar acao futura
+              </span>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="datetime">Data e Hora do Agendamento</Label>
+                  <div className="relative">
+                    <Input
+                      id="datetime"
+                      type="datetime-local"
+                      value={scheduleDateTime}
+                      onChange={(event) => setScheduleDateTime(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    className="h-11 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                    variant="secondary"
+                    disabled={loading !== null || scheduling !== null}
+                    onClick={() => void scheduleCommand("ARMAR")}
+                  >
+                    <Calendar className="mr-1.5 h-3.5 w-3.5" />
+                    {scheduling === "ARMAR" ? "Agendando..." : "Agendar Arme"}
+                  </Button>
+                  <Button
+                    className="h-11 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                    variant="secondary"
+                    disabled={loading !== null || scheduling !== null}
+                    onClick={() => void scheduleCommand("DESARMAR")}
+                  >
+                    <Clock className="mr-1.5 h-3.5 w-3.5" />
+                    {scheduling === "DESARMAR" ? "Agendando..." : "Agendar Desarme"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Coluna 3: Agendamentos de Arme/Desarme */}
+        <Card className="overflow-hidden border-border/60 shadow-md">
+          <div className="border-b bg-card px-6 py-5">
+            <p className="text-sm font-medium text-muted-foreground">Agendamentos pendentes</p>
+            <p className="mt-1 text-2xl font-semibold text-foreground">Lista de acoes</p>
+          </div>
+          <CardContent className="p-6">
+            {schedules.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
+                <Calendar className="h-10 w-10 text-muted-foreground/45 mb-3" />
+                <p className="text-sm">Nenhum agendamento pendente no momento.</p>
+              </div>
+            ) : (
+              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
+                {schedules.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-start justify-between gap-3 rounded-lg border bg-card p-4 shadow-sm"
+                  >
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            item.command === "ARMAR"
+                              ? "bg-primary/10 text-primary"
+                              : "bg-amber-500/10 text-amber-500"
+                          }`}
+                        >
+                          {item.command === "ARMAR" ? "ARMAR" : "DESARMAR"}
+                        </span>
+                        <span className="font-mono text-sm font-semibold text-foreground">
+                          Conta: {item.client}
+                        </span>
+                      </div>
+                      <p className="text-sm font-medium truncate text-foreground">
+                        {item.companyName}
+                      </p>
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(item.datetime).toLocaleString("pt-BR")}
+                        </span>
+                        <span className="truncate">Op: {item.operator}</span>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:bg-destructive/10 shrink-0"
+                      onClick={() => void deleteSchedule(item.id)}
+                      aria-label="Excluir agendamento"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>

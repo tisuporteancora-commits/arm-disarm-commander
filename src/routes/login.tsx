@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, LockKeyhole } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -67,8 +67,12 @@ function LoginPage() {
       <main className="mx-auto flex min-h-[calc(100vh-65px)] max-w-6xl items-center justify-center px-4 py-10">
         <Card className="w-full max-w-[420px] border-primary/20 shadow-lg shadow-primary/10">
           <CardHeader className="space-y-4 pb-5 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <LockKeyhole className="h-5 w-5" />
+            <div className="mx-auto">
+              <img
+                src="/logo-ancora.png"
+                alt="Âncora Segurança Patrimonial"
+                className="mx-auto h-24 w-auto"
+              />
             </div>
             <div className="space-y-1.5">
               <CardTitle className="text-2xl">Acesso administrativo</CardTitle>

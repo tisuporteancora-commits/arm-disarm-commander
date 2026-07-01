@@ -8,6 +8,7 @@ import type {
   AlarmCommandInput,
   AlarmCommandResult,
   AlarmLogEntry,
+  AlarmSchedule,
   AlarmSettings,
   Company,
 } from "./alarm.types";
@@ -40,12 +41,15 @@ const DEFAULT_SETTINGS: AlarmSettings = {
 type AlarmState = {
   settings: AlarmSettings;
   logs: AlarmLogEntry[];
+  credentials?: { username: string; password: string };
+  schedules?: AlarmSchedule[];
 };
 
 function emptyState(): AlarmState {
   return {
     settings: DEFAULT_SETTINGS,
     logs: [],
+    schedules: [],
   };
 }
 
@@ -64,6 +68,8 @@ async function readState(): Promise<AlarmState> {
             : DEFAULT_SETTINGS.companies,
       },
       logs: Array.isArray(parsed.logs) ? parsed.logs : [],
+      credentials: parsed.credentials,
+      schedules: Array.isArray(parsed.schedules) ? parsed.schedules : [],
     };
   } catch {
     return emptyState();
@@ -73,6 +79,25 @@ async function readState(): Promise<AlarmState> {
 async function writeState(state: AlarmState): Promise<void> {
   await mkdir(dirname(STATE_FILE), { recursive: true });
   await writeFile(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`, "utf-8");
+}
+
+export async function getStoredCredentials() {
+  const state = await readState();
+  return state.credentials || {
+    username: process.env.ALARM_ADMIN_USERNAME ?? "admin",
+    password: process.env.ALARM_ADMIN_PASSWORD ?? "admin",
+  };
+}
+
+export async function setStoredCredentials(credentials: { username: string; password: string }): Promise<void> {
+  const state = await readState();
+  await writeState({
+    ...state,
+    credentials: {
+      username: credentials.username.trim(),
+      password: credentials.password,
+    },
+  });
 }
 
 function commandIdentification(command: AlarmCommand): "E" | "R" {
@@ -205,7 +230,7 @@ export async function dispatchAlarmCommand(input: AlarmCommandInput): Promise<Al
     url = buildCommandUrl(state.settings, input);
 
     const response = await fetch(url, {
-      method: "GET",
+      method: "POST",
       signal: AbortSignal.timeout(10_000),
     });
 
@@ -252,3 +277,80 @@ export async function dispatchAlarmCommand(input: AlarmCommandInput): Promise<Al
     throw new Error(errorMessage);
   }
 }
+
+export async function getAlarmSchedules(): Promise<AlarmSchedule[]> {
+  const state = await readState();
+  return state.schedules || [];
+}
+
+export async function addAlarmSchedule(input: Omit<AlarmSchedule, "id">): Promise<AlarmSchedule> {
+  const state = await readState();
+  const schedule: AlarmSchedule = {
+    ...input,
+    id: crypto.randomUUID(),
+  };
+
+  await writeState({
+    ...state,
+    schedules: [...(state.schedules || []), schedule],
+  });
+
+  return schedule;
+}
+
+export async function deleteAlarmSchedule(id: string): Promise<void> {
+  const state = await readState();
+  await writeState({
+    ...state,
+    schedules: (state.schedules || []).filter((s) => s.id !== id),
+  });
+}
+
+// Background scheduler
+let schedulerIntervalId: any = null;
+
+function startScheduler() {
+  if (schedulerIntervalId) return;
+
+  schedulerIntervalId = setInterval(async () => {
+    try {
+      const state = await readState();
+      const schedules = state.schedules || [];
+      if (schedules.length === 0) return;
+
+      const now = new Date();
+      const due = schedules.filter((s) => new Date(s.datetime) <= now);
+      if (due.length === 0) return;
+
+      const remaining = schedules.filter((s) => new Date(s.datetime) > now);
+
+      // Save remaining first to prevent multiple execution attempts in case of crashes
+      await writeState({
+        ...state,
+        schedules: remaining,
+      });
+
+      console.log(`[Scheduler] Executando ${due.length} comandos agendados...`);
+
+      for (const item of due) {
+        try {
+          await dispatchAlarmCommand({
+            operator: `Agendado (${item.operator})`,
+            client: item.client,
+            organization: item.organization,
+            command: item.command,
+          });
+          console.log(`[Scheduler] Comando ${item.command} executado para conta ${item.client}.`);
+        } catch (error) {
+          console.error(`[Scheduler] Falha ao executar comando agendado para conta ${item.client}:`, error);
+        }
+      }
+    } catch (err) {
+      console.error("[Scheduler] Erro no loop de agendamentos:", err);
+    }
+  }, 15_000); // Check every 15 seconds
+}
+
+// Start scheduler immediately on module load
+startScheduler();
+

@@ -34,3 +34,20 @@ export const logoutFn = createServerFn({ method: "POST" }).handler(async () => {
   await clearSession();
   return { authenticated: false };
 });
+
+import { requireAuthenticatedSession } from "./session.server";
+import { setStoredCredentials } from "../alarm/alarm.server";
+
+export const updateCredentialsFn = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      username: z.string().trim().min(3, "O usuario precisa ter pelo menos 3 caracteres."),
+      password: z.string().min(4, "A senha precisa ter pelo menos 4 caracteres."),
+    }),
+  )
+  .handler(async ({ data }) => {
+    preventSensitiveCaching();
+    await requireAuthenticatedSession();
+    await setStoredCredentials(data);
+    return { success: true };
+  });

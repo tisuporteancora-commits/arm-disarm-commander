@@ -9,12 +9,7 @@ type Credentials = {
   password: string;
 };
 
-function configuredCredentials(): Credentials {
-  return {
-    username: process.env.ALARM_ADMIN_USERNAME ?? "admin",
-    password: process.env.ALARM_ADMIN_PASSWORD ?? "admin",
-  };
-}
+import { getStoredCredentials } from "../alarm/alarm.server";
 
 function secureEqual(left: string, right: string): boolean {
   const leftHash = createHash("sha256").update(left).digest();
@@ -23,7 +18,7 @@ function secureEqual(left: string, right: string): boolean {
 }
 
 export async function authenticate(credentials: Credentials): Promise<boolean> {
-  const configured = configuredCredentials();
+  const configured = await getStoredCredentials();
   const validUsername = secureEqual(credentials.username, configured.username);
   const validPassword = secureEqual(credentials.password, configured.password);
 

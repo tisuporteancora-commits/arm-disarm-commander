@@ -42,3 +42,13 @@ export type AlarmLogEntry = {
   httpStatus?: number;
   errorMessage?: string;
 };
+
+export type AlarmSchedule = {
+  id: string;
+  operator: string;
+  client: string;
+  organization: string;
+  companyName: string;
+  command: AlarmCommand;
+  datetime: string;
+};
