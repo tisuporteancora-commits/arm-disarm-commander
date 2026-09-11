@@ -113,8 +113,8 @@ function Index() {
       return;
     }
 
-    if (!/^\d{4}$/.test(client)) {
-      toast.error("A conta do cliente deve ter exatamente 4 digitos.");
+    if (!/^[A-Za-z0-9]{4}$/.test(client)) {
+      toast.error("A conta do cliente deve ter exatamente 4 caracteres.");
       return;
     }
 
@@ -153,8 +153,8 @@ function Index() {
       return;
     }
 
-    if (!/^\d{4}$/.test(client)) {
-      toast.error("A conta do cliente deve ter exatamente 4 digitos.");
+    if (!/^[A-Za-z0-9]{4}$/.test(client)) {
+      toast.error("A conta do cliente deve ter exatamente 4 caracteres.");
       return;
     }
 
@@ -307,11 +307,12 @@ function Index() {
                 <Label htmlFor="client">Conta</Label>
                 <Input
                   id="client"
-                  inputMode="numeric"
                   maxLength={4}
                   placeholder="0000"
                   value={client}
-                  onChange={(event) => setClient(event.target.value.replace(/\D/g, "").slice(0, 4))}
+                  onChange={(event) =>
+                    setClient(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4))
+                  }
                 />
               </div>
 

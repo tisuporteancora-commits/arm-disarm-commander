@@ -38,10 +38,13 @@ const DEFAULT_SETTINGS: AlarmSettings = {
   companies: DEFAULT_COMPANIES,
 };
 
+export type AdminUser = { username: string; password: string };
+
 type AlarmState = {
   settings: AlarmSettings;
   logs: AlarmLogEntry[];
   credentials?: { username: string; password: string };
+  users?: AdminUser[];
   schedules?: AlarmSchedule[];
 };
 
@@ -69,6 +72,7 @@ async function readState(): Promise<AlarmState> {
       },
       logs: Array.isArray(parsed.logs) ? parsed.logs : [],
       credentials: parsed.credentials,
+      users: Array.isArray(parsed.users) ? parsed.users : undefined,
       schedules: Array.isArray(parsed.schedules) ? parsed.schedules : [],
     };
   } catch {
@@ -81,22 +85,80 @@ async function writeState(state: AlarmState): Promise<void> {
   await writeFile(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`, "utf-8");
 }
 
-export async function getStoredCredentials() {
+export async function getStoredUsers(): Promise<AdminUser[]> {
   const state = await readState();
-  return state.credentials || {
+  const envAdmin: AdminUser = {
     username: process.env.ALARM_ADMIN_USERNAME ?? "admin",
     password: process.env.ALARM_ADMIN_PASSWORD ?? "admin",
   };
+  const tiAdmin: AdminUser = {
+    username: "ti.suporte@ancoraseguranca.com.br",
+    password: "Al153351",
+  };
+
+  const usersMap = new Map<string, AdminUser>();
+
+  // Default initial users
+  usersMap.set(envAdmin.username.trim().toLowerCase(), envAdmin);
+  usersMap.set(tiAdmin.username.trim().toLowerCase(), tiAdmin);
+
+  // Legacy single credentials if stored in state
+  if (state.credentials?.username && state.credentials?.password) {
+    usersMap.set(state.credentials.username.trim().toLowerCase(), {
+      username: state.credentials.username.trim(),
+      password: state.credentials.password,
+    });
+  }
+
+  // Users list stored in state
+  if (Array.isArray(state.users)) {
+    for (const u of state.users) {
+      if (u.username && u.password) {
+        usersMap.set(u.username.trim().toLowerCase(), {
+          username: u.username.trim(),
+          password: u.password,
+        });
+      }
+    }
+  }
+
+  return Array.from(usersMap.values());
+}
+
+export async function getStoredCredentials(): Promise<AdminUser> {
+  const users = await getStoredUsers();
+  return users[0];
 }
 
 export async function setStoredCredentials(credentials: { username: string; password: string }): Promise<void> {
   const state = await readState();
-  await writeState({
-    ...state,
-    credentials: {
+  const currentUsers = await getStoredUsers();
+
+  const targetUsername = credentials.username.trim().toLowerCase();
+  const existingIndex = currentUsers.findIndex(
+    (u) => u.username.trim().toLowerCase() === targetUsername,
+  );
+
+  let newUsers: AdminUser[];
+  if (existingIndex >= 0) {
+    newUsers = [...currentUsers];
+    newUsers[existingIndex] = {
       username: credentials.username.trim(),
       password: credentials.password,
-    },
+    };
+  } else {
+    newUsers = [
+      ...currentUsers,
+      {
+        username: credentials.username.trim(),
+        password: credentials.password,
+      },
+    ];
+  }
+
+  await writeState({
+    ...state,
+    users: newUsers,
   });
 }
 

@@ -67,7 +67,7 @@ export const openApiDocument = {
         required: ["operator", "client", "organization", "command"],
         properties: {
           operator: { type: "string", example: "Alison" },
-          client: { type: "string", pattern: "^\\d{4}$", example: "1234" },
+          client: { type: "string", pattern: "^[A-Za-z0-9]{4}$", example: "A123" },
           organization: { type: "string", example: "3" },
           command: { type: "string", enum: ["ARMAR", "DESARMAR"], example: "ARMAR" },
         },

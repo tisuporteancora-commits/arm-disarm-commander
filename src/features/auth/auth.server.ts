@@ -9,7 +9,7 @@ type Credentials = {
   password: string;
 };
 
-import { getStoredCredentials } from "../alarm/alarm.server";
+import { getStoredUsers } from "../alarm/alarm.server";
 
 function secureEqual(left: string, right: string): boolean {
   const leftHash = createHash("sha256").update(left).digest();
@@ -18,18 +18,23 @@ function secureEqual(left: string, right: string): boolean {
 }
 
 export async function authenticate(credentials: Credentials): Promise<boolean> {
-  const configured = await getStoredCredentials();
-  const validUsername = secureEqual(credentials.username, configured.username);
-  const validPassword = secureEqual(credentials.password, configured.password);
+  const users = await getStoredUsers();
+  const inputUsername = credentials.username.trim().toLowerCase();
 
-  if (!validUsername || !validPassword) {
+  const matchedUser = users.find(
+    (u) =>
+      secureEqual(inputUsername, u.username.trim().toLowerCase()) &&
+      secureEqual(credentials.password, u.password),
+  );
+
+  if (!matchedUser) {
     return false;
   }
 
   const session = await getAppSession();
   await session.update({
     authenticated: true,
-    username: configured.username,
+    username: matchedUser.username,
   });
 
   return true;

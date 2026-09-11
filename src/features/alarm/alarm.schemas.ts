@@ -19,7 +19,7 @@ export const alarmCommandSchema = z.object({
   client: z
     .string()
     .trim()
-    .regex(/^\d{4}$/, "A conta deve ter exatamente 4 digitos."),
+    .regex(/^[A-Za-z0-9]{4}$/, "A conta deve ter exatamente 4 caracteres."),
   organization: z.string().trim().min(1, "Selecione a empresa."),
   command: z.enum(["ARMAR", "DESARMAR"]),
 });
