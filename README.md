@@ -54,6 +54,30 @@ Exemplo final:
 http://192.168.0.120:9000/api/v1/events?client=1234&partition=01&organization=3&occurrence=401&identification=R&sector=120
 ```
 
+### Centrais TEM
+
+A tela principal tem uma aba separada, `Centrais de alarme`, que envia comandos
+diretamente para as centrais TEM. A aba `Receptora` continua usando o fluxo acima.
+
+Configure a URL e a chave de API em Admin > Centrais TEM (ou use `TEM_API_URL` e
+`TEM_API_KEY` no `.env`).
+
+O servidor envia:
+
+```text
+POST http://192.168.0.106:8780/api/v1/commands
+X-API-Key: <chave de API TEM>
+Content-Type: application/json
+
+{ "account": "1234", "command": "arm" }
+```
+
+`ARMAR` vira `arm`, `DESARMAR` vira `disarm`, `ISOLAR` vira `bypass` e `DESISOLAR`
+vira `unbypass` (com os setores em `params.zones`, ex.: `{ "zones": [1, 2] }`). O PIN vai no campo `pin` e nao e
+gravado nos logs. Se o campo PIN da tela ficar vazio, e usado o PIN padrao configurado
+em Admin > Centrais TEM (padrao `1234`, ou `TEM_DEFAULT_PIN` no `.env`). O IP deste servidor precisa estar na
+lista de IPs permitidos da API TEM.
+
 ## Rodando
 
 ```powershell

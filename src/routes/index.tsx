@@ -15,6 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Toaster } from "@/components/ui/sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TemCommandPanel } from "@/components/tem-command-panel";
 import {
   createAlarmScheduleFn,
   deleteAlarmScheduleFn,
@@ -79,7 +81,7 @@ function Index() {
   async function loadSchedules() {
     try {
       const data = await getAlarmSchedulesFn();
-      setSchedules(data);
+      setSchedules(data.filter((item) => item.provider !== "TEM"));
     } catch {
       console.error("Erro ao carregar agendamentos.");
     }
@@ -261,6 +263,19 @@ function Index() {
         </div>
       </header>
 
+      <Tabs defaultValue="receptora">
+      <div className="mx-auto max-w-6xl px-4 pt-4">
+        <TabsList>
+          <TabsTrigger value="receptora">Analíticos</TabsTrigger>
+          <TabsTrigger value="tem">Centrais de alarme</TabsTrigger>
+        </TabsList>
+      </div>
+
+      <TabsContent value="tem">
+        <TemCommandPanel />
+      </TabsContent>
+
+      <TabsContent value="receptora">
       <div className="mx-auto max-w-6xl px-4 pt-4">
         <div className="flex items-start gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-black">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
@@ -478,6 +493,8 @@ function Index() {
           </CardContent>
         </Card>
       </main>
+      </TabsContent>
+      </Tabs>
     </div>
   );
 }

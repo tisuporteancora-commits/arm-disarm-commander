@@ -3,10 +3,23 @@ export type Company = {
   name: string;
 };
 
+export type AlarmProvider = "RECEPTORA" | "TEM";
+
+export type TemSettings = {
+  baseUrl: string;
+  apiKey: string;
+  defaultPin: string;
+};
+
 export type AlarmSettings = {
   targetHost: string;
   targetPort: string;
+  tem: TemSettings;
   companies: Company[];
+};
+
+export type AlarmSettingsInput = Omit<AlarmSettings, "tem"> & {
+  tem?: TemSettings;
 };
 
 export type AlarmCommand = "ARMAR" | "DESARMAR";
@@ -16,6 +29,23 @@ export type AlarmCommandInput = {
   client: string;
   organization: string;
   command: AlarmCommand;
+};
+
+export type TemCommand = AlarmCommand | "ISOLAR" | "DESISOLAR";
+
+export type TemCommandInput = {
+  operator: string;
+  account: string;
+  command: TemCommand;
+  pin?: string;
+  zones?: number[];
+};
+
+export type TemCommandResult = {
+  success: boolean;
+  command: TemCommand;
+  account: string;
+  httpStatus?: number;
 };
 
 export type AlarmCommandResult = {
@@ -36,7 +66,9 @@ export type AlarmLogEntry = {
   client: string;
   companyId: string;
   companyName: string;
-  command: AlarmCommand;
+  command: TemCommand;
+  zones?: number[];
+  provider?: AlarmProvider;
   url: string;
   status: AlarmLogStatus;
   httpStatus?: number;
@@ -49,6 +81,14 @@ export type AlarmSchedule = {
   client: string;
   organization: string;
   companyName: string;
+  command: AlarmCommand;
+  datetime: string;
+  provider?: AlarmProvider;
+};
+
+export type TemScheduleInput = {
+  operator: string;
+  account: string;
   command: AlarmCommand;
   datetime: string;
 };

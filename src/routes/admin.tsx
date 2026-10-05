@@ -266,6 +266,7 @@ function AdminPage() {
           <TabsList>
             <TabsTrigger value="logs">Logs</TabsTrigger>
             <TabsTrigger value="config">Configuracoes</TabsTrigger>
+            <TabsTrigger value="tem">Centrais TEM</TabsTrigger>
             <TabsTrigger value="empresas">Empresas</TabsTrigger>
             <TabsTrigger value="acesso">Acesso</TabsTrigger>
           </TabsList>
@@ -319,6 +320,7 @@ function AdminPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="ALL">Todas as empresas</SelectItem>
+                        <SelectItem value="TEM">Centrais TEM</SelectItem>
                         {settings.companies.map((company) => (
                           <SelectItem key={company.id} value={company.id}>
                             {company.name}
@@ -375,6 +377,11 @@ function AdminPage() {
                                 <Badge variant={log.command === "ARMAR" ? "default" : "secondary"}>
                                   {log.command}
                                 </Badge>
+                                {log.zones?.length ? (
+                                  <span className="ml-1 text-xs text-muted-foreground">
+                                    Setores {log.zones.join(", ")}
+                                  </span>
+                                ) : null}
                               </TableCell>
                               <TableCell className="font-mono">{log.client}</TableCell>
                               <TableCell>{log.companyName}</TableCell>
@@ -430,6 +437,78 @@ function AdminPage() {
                 </div>
                 <Button onClick={() => void saveSettings()} disabled={saving}>
                   {saving ? "Salvando..." : "Salvar configuracoes"}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="tem">
+            <Card>
+              <CardHeader>
+                <CardTitle>Centrais de alarme TEM</CardTitle>
+                <CardDescription>
+                  Usado pela aba "Centrais de alarme" da tela de comando.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="tem-url">URL da API TEM</Label>
+                    <Input
+                      id="tem-url"
+                      placeholder="http://192.168.0.106:8780"
+                      value={settings.tem.baseUrl}
+                      onChange={(event) =>
+                        setSettings({
+                          ...settings,
+                          tem: { ...settings.tem, baseUrl: event.target.value },
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="tem-key">Chave de API TEM (X-API-Key)</Label>
+                    <Input
+                      id="tem-key"
+                      type="password"
+                      autoComplete="off"
+                      value={settings.tem.apiKey}
+                      onChange={(event) =>
+                        setSettings({
+                          ...settings,
+                          tem: { ...settings.tem, apiKey: event.target.value },
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="tem-default-pin">PIN padrao da central</Label>
+                    <Input
+                      id="tem-default-pin"
+                      type="password"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      maxLength={4}
+                      placeholder="Vazio para usar o PIN salvo no TEM Cloud"
+                      value={settings.tem.defaultPin}
+                      onChange={(event) =>
+                        setSettings({
+                          ...settings,
+                          tem: {
+                            ...settings.tem,
+                            defaultPin: event.target.value.replace(/\D/g, "").slice(0, 4),
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  O comando e enviado como POST para <code>/api/v1/commands</code> com o corpo{" "}
+                  <code>{'{ "account": "<conta>", "command": "arm" | "disarm" }'}</code>.
+                </p>
+                <Button onClick={() => void saveSettings()} disabled={saving}>
+                  {saving ? "Salvando..." : "Salvar configuracoes TEM"}
                 </Button>
               </CardContent>
             </Card>

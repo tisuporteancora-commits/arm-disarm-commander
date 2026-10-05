@@ -3,12 +3,19 @@ import { setResponseHeaders } from "@tanstack/react-start/server";
 
 import { z } from "zod";
 import { requireAuthenticatedSession } from "../auth/session.server";
-import { alarmCommandSchema, alarmSettingsSchema } from "./alarm.schemas";
+import {
+  alarmCommandSchema,
+  alarmSettingsSchema,
+  temCommandSchema,
+  temScheduleSchema,
+} from "./alarm.schemas";
 import {
   addAlarmSchedule,
+  addTemSchedule,
   clearAlarmLogs,
   deleteAlarmSchedule,
   dispatchAlarmCommand,
+  dispatchTemCommand,
   getAdminState,
   getAlarmSchedules,
   getCommandCompanies,
@@ -32,6 +39,20 @@ export const sendAlarmCommandFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     preventSensitiveCaching();
     return dispatchAlarmCommand(data);
+  });
+
+export const sendTemCommandFn = createServerFn({ method: "POST" })
+  .validator(temCommandSchema)
+  .handler(async ({ data }) => {
+    preventSensitiveCaching();
+    return dispatchTemCommand(data);
+  });
+
+export const createTemScheduleFn = createServerFn({ method: "POST" })
+  .validator(temScheduleSchema)
+  .handler(async ({ data }) => {
+    preventSensitiveCaching();
+    return addTemSchedule(data);
   });
 
 export const getAdminStateFn = createServerFn({ method: "GET" }).handler(async () => {

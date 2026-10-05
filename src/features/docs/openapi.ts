@@ -56,6 +56,16 @@ export const openApiDocument = {
               "Host ou IP da central que recebe o disparo. Usado para formar http://targetHost:targetPort/api/v1/events.",
           },
           targetPort: { type: "string", example: "9000" },
+          tem: {
+            type: "object",
+            description:
+              "Integracao com centrais TEM. Os comandos sao enviados para POST {baseUrl}/api/v1/commands com header X-API-Key e corpo { account, command, pin? }. Se omitido, mantem o valor atual.",
+            required: ["baseUrl", "apiKey"],
+            properties: {
+              baseUrl: { type: "string", example: "http://192.168.0.106:8780" },
+              apiKey: { type: "string", example: "tem_xxxxxxxxxxxxxxxx" },
+            },
+          },
           companies: {
             type: "array",
             items: { $ref: "#/components/schemas/Company" },
