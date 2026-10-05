@@ -225,20 +225,38 @@ function Index() {
               <h1 className="text-xl font-semibold text-foreground">Arme & Desarme</h1>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={toggleTheme}
-              aria-label="Alternar tema"
-            >
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
-            <Link to="/admin">
-              <Button variant="outline" size="icon" aria-label="Administrador">
-                <SettingsIcon className="h-4 w-4" />
+          <div className="flex items-center gap-4">
+            <div className="hidden md:block text-right">
+              <a 
+                href="https://wa.me/551632414345" 
+                target="_blank" 
+                rel="noreferrer" 
+                className="block text-sm font-semibold text-foreground hover:text-primary transition-colors"
+              >
+                +55 16 3241-4345
+              </a>
+              <a 
+                href="mailto:atendimento@ancoraseguranca.com.br" 
+                className="block text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
+              >
+                atendimento@ancoraseguranca.com.br
+              </a>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={toggleTheme}
+                aria-label="Alternar tema"
+              >
+                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </Button>
-            </Link>
+              <Link to="/admin">
+                <Button variant="outline" size="icon" aria-label="Administrador">
+                  <SettingsIcon className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
