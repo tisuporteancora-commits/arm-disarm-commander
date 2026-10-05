@@ -85,7 +85,10 @@ export const createAlarmScheduleFn = createServerFn({ method: "POST" })
   .validator(
     z.object({
       operator: z.string().trim().min(2, "Informe o nome do operador."),
-      client: z.string().trim().regex(/^\d{4}$/, "A conta deve ter exatamente 4 digitos."),
+      client: z
+        .string()
+        .trim()
+        .regex(/^[A-Za-z0-9]{4}$/, "A conta deve ter exatamente 4 caracteres."),
       organization: z.string().trim().min(1, "Selecione a empresa."),
       companyName: z.string().trim().min(1),
       command: z.enum(["ARMAR", "DESARMAR"]),
