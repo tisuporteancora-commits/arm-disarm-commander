@@ -14,6 +14,7 @@ O fluxo principal e simples:
 
 - Node.js 22 ou superior
 - npm instalado
+- FFmpeg no PATH (ou `FFMPEG_PATH` no `.env`) para a aba **Cameras**
 
 As dependencias atuais do TanStack exigem Node mais novo. Node 20.18 nao e suficiente.
 
@@ -77,6 +78,33 @@ vira `unbypass` (com os setores em `params.zones`, ex.: `{ "zones": [1, 2] }`). 
 gravado nos logs. Se o campo PIN da tela ficar vazio, e usado o PIN padrao configurado
 em Admin > Centrais TEM (padrao `1234`, ou `TEM_DEFAULT_PIN` no `.env`). O IP deste servidor precisa estar na
 lista de IPs permitidos da API TEM.
+
+### Cameras (RTSP + PTZ ONVIF)
+
+A aba `Cameras` cadastra speed domes (ex.: Intelbras VIP-3225-SD-IR-IA-G2) por URL RTSP,
+exibe o video ao vivo via FFmpeg (MJPEG) e move a posicao por ONVIF.
+
+1. Instale o [FFmpeg](https://ffmpeg.org/download.html) e garanta que `ffmpeg` esteja no PATH,
+   ou defina `FFMPEG_PATH` apontando para o executavel.
+2. Na aba Cameras, informe nome, URL RTSP, usuario e senha da camera.
+3. O host ONVIF e inferido do IP do RTSP se voce nao preencher.
+4. Segure as setas para pan/tilt/zoom; ao soltar, a camera para.
+
+Exemplo de RTSP Intelbras:
+
+```text
+rtsp://admin:SENHA@192.168.0.50:554/cam/realmonitor?channel=1&subtype=0
+```
+
+As cameras ficam em `.app-data/alarm-state.json` (campo `cameras`). Senhas nao sao
+devolvidas na listagem publica.
+
+Endpoints:
+
+| Metodo | Rota | Descricao |
+| --- | --- | --- |
+| `GET` | `/api/cameras/:id/stream` | Stream MJPEG (FFmpeg) |
+| `POST` | `/api/cameras/:id/ptz` | Comando PTZ `{ "action": "up" \| ... \| "stop" }` |
 
 ## Rodando
 

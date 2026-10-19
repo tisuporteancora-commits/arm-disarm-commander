@@ -13,6 +13,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CamerasCameraIdRouteImport } from './routes/cameras.$cameraId'
 import { Route as ApiSessionRouteImport } from './routes/api/session'
 import { Route as ApiDocsOpenapiDotjsonRouteImport } from './routes/api/docs/openapi[.]json'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
@@ -20,6 +21,8 @@ import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
 import { Route as ApiAlarmSettingsRouteImport } from './routes/api/alarm/settings'
 import { Route as ApiAlarmLogsRouteImport } from './routes/api/alarm/logs'
 import { Route as ApiAlarmCommandsRouteImport } from './routes/api/alarm/commands'
+import { Route as ApiCamerasCameraIdStreamRouteImport } from './routes/api/cameras/$cameraId/stream'
+import { Route as ApiCamerasCameraIdPtzRouteImport } from './routes/api/cameras/$cameraId/ptz'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -39,6 +42,11 @@ const AdminRoute = AdminRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CamerasCameraIdRoute = CamerasCameraIdRouteImport.update({
+  id: '/cameras/$cameraId',
+  path: '/cameras/$cameraId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSessionRoute = ApiSessionRouteImport.update({
@@ -76,6 +84,17 @@ const ApiAlarmCommandsRoute = ApiAlarmCommandsRouteImport.update({
   path: '/api/alarm/commands',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCamerasCameraIdStreamRoute =
+  ApiCamerasCameraIdStreamRouteImport.update({
+    id: '/api/cameras/$cameraId/stream',
+    path: '/api/cameras/$cameraId/stream',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiCamerasCameraIdPtzRoute = ApiCamerasCameraIdPtzRouteImport.update({
+  id: '/api/cameras/$cameraId/ptz',
+  path: '/api/cameras/$cameraId/ptz',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -83,12 +102,15 @@ export interface FileRoutesByFullPath {
   '/docs': typeof DocsRoute
   '/login': typeof LoginRoute
   '/api/session': typeof ApiSessionRoute
+  '/cameras/$cameraId': typeof CamerasCameraIdRoute
   '/api/alarm/commands': typeof ApiAlarmCommandsRoute
   '/api/alarm/logs': typeof ApiAlarmLogsRoute
   '/api/alarm/settings': typeof ApiAlarmSettingsRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/docs/openapi.json': typeof ApiDocsOpenapiDotjsonRoute
+  '/api/cameras/$cameraId/ptz': typeof ApiCamerasCameraIdPtzRoute
+  '/api/cameras/$cameraId/stream': typeof ApiCamerasCameraIdStreamRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -96,12 +118,15 @@ export interface FileRoutesByTo {
   '/docs': typeof DocsRoute
   '/login': typeof LoginRoute
   '/api/session': typeof ApiSessionRoute
+  '/cameras/$cameraId': typeof CamerasCameraIdRoute
   '/api/alarm/commands': typeof ApiAlarmCommandsRoute
   '/api/alarm/logs': typeof ApiAlarmLogsRoute
   '/api/alarm/settings': typeof ApiAlarmSettingsRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/docs/openapi.json': typeof ApiDocsOpenapiDotjsonRoute
+  '/api/cameras/$cameraId/ptz': typeof ApiCamerasCameraIdPtzRoute
+  '/api/cameras/$cameraId/stream': typeof ApiCamerasCameraIdStreamRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -110,12 +135,15 @@ export interface FileRoutesById {
   '/docs': typeof DocsRoute
   '/login': typeof LoginRoute
   '/api/session': typeof ApiSessionRoute
+  '/cameras/$cameraId': typeof CamerasCameraIdRoute
   '/api/alarm/commands': typeof ApiAlarmCommandsRoute
   '/api/alarm/logs': typeof ApiAlarmLogsRoute
   '/api/alarm/settings': typeof ApiAlarmSettingsRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/docs/openapi.json': typeof ApiDocsOpenapiDotjsonRoute
+  '/api/cameras/$cameraId/ptz': typeof ApiCamerasCameraIdPtzRoute
+  '/api/cameras/$cameraId/stream': typeof ApiCamerasCameraIdStreamRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -125,12 +153,15 @@ export interface FileRouteTypes {
     | '/docs'
     | '/login'
     | '/api/session'
+    | '/cameras/$cameraId'
     | '/api/alarm/commands'
     | '/api/alarm/logs'
     | '/api/alarm/settings'
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/docs/openapi.json'
+    | '/api/cameras/$cameraId/ptz'
+    | '/api/cameras/$cameraId/stream'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -138,12 +169,15 @@ export interface FileRouteTypes {
     | '/docs'
     | '/login'
     | '/api/session'
+    | '/cameras/$cameraId'
     | '/api/alarm/commands'
     | '/api/alarm/logs'
     | '/api/alarm/settings'
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/docs/openapi.json'
+    | '/api/cameras/$cameraId/ptz'
+    | '/api/cameras/$cameraId/stream'
   id:
     | '__root__'
     | '/'
@@ -151,12 +185,15 @@ export interface FileRouteTypes {
     | '/docs'
     | '/login'
     | '/api/session'
+    | '/cameras/$cameraId'
     | '/api/alarm/commands'
     | '/api/alarm/logs'
     | '/api/alarm/settings'
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/docs/openapi.json'
+    | '/api/cameras/$cameraId/ptz'
+    | '/api/cameras/$cameraId/stream'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -165,12 +202,15 @@ export interface RootRouteChildren {
   DocsRoute: typeof DocsRoute
   LoginRoute: typeof LoginRoute
   ApiSessionRoute: typeof ApiSessionRoute
+  CamerasCameraIdRoute: typeof CamerasCameraIdRoute
   ApiAlarmCommandsRoute: typeof ApiAlarmCommandsRoute
   ApiAlarmLogsRoute: typeof ApiAlarmLogsRoute
   ApiAlarmSettingsRoute: typeof ApiAlarmSettingsRoute
   ApiAuthLoginRoute: typeof ApiAuthLoginRoute
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
   ApiDocsOpenapiDotjsonRoute: typeof ApiDocsOpenapiDotjsonRoute
+  ApiCamerasCameraIdPtzRoute: typeof ApiCamerasCameraIdPtzRoute
+  ApiCamerasCameraIdStreamRoute: typeof ApiCamerasCameraIdStreamRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -201,6 +241,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cameras/$cameraId': {
+      id: '/cameras/$cameraId'
+      path: '/cameras/$cameraId'
+      fullPath: '/cameras/$cameraId'
+      preLoaderRoute: typeof CamerasCameraIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/session': {
@@ -252,6 +299,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAlarmCommandsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cameras/$cameraId/stream': {
+      id: '/api/cameras/$cameraId/stream'
+      path: '/api/cameras/$cameraId/stream'
+      fullPath: '/api/cameras/$cameraId/stream'
+      preLoaderRoute: typeof ApiCamerasCameraIdStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cameras/$cameraId/ptz': {
+      id: '/api/cameras/$cameraId/ptz'
+      path: '/api/cameras/$cameraId/ptz'
+      fullPath: '/api/cameras/$cameraId/ptz'
+      preLoaderRoute: typeof ApiCamerasCameraIdPtzRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -261,12 +322,15 @@ const rootRouteChildren: RootRouteChildren = {
   DocsRoute: DocsRoute,
   LoginRoute: LoginRoute,
   ApiSessionRoute: ApiSessionRoute,
+  CamerasCameraIdRoute: CamerasCameraIdRoute,
   ApiAlarmCommandsRoute: ApiAlarmCommandsRoute,
   ApiAlarmLogsRoute: ApiAlarmLogsRoute,
   ApiAlarmSettingsRoute: ApiAlarmSettingsRoute,
   ApiAuthLoginRoute: ApiAuthLoginRoute,
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
   ApiDocsOpenapiDotjsonRoute: ApiDocsOpenapiDotjsonRoute,
+  ApiCamerasCameraIdPtzRoute: ApiCamerasCameraIdPtzRoute,
+  ApiCamerasCameraIdStreamRoute: ApiCamerasCameraIdStreamRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

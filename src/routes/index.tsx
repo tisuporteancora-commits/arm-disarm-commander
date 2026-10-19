@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Toaster } from "@/components/ui/sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CamerasPanel } from "@/components/cameras-panel";
 import { TemCommandPanel } from "@/components/tem-command-panel";
 import {
   createAlarmScheduleFn,
@@ -268,11 +269,16 @@ function Index() {
         <TabsList>
           <TabsTrigger value="receptora">Analíticos</TabsTrigger>
           <TabsTrigger value="tem">Centrais de alarme</TabsTrigger>
+          <TabsTrigger value="cameras">Câmeras</TabsTrigger>
         </TabsList>
       </div>
 
       <TabsContent value="tem">
         <TemCommandPanel />
+      </TabsContent>
+
+      <TabsContent value="cameras">
+        <CamerasPanel />
       </TabsContent>
 
       <TabsContent value="receptora">
