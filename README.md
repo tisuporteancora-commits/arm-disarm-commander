@@ -24,6 +24,19 @@ As dependencias atuais do TanStack exigem Node mais novo. Node 20.18 nao e sufic
 npm install
 ```
 
+### Em outra maquina (depois do git pull)
+
+```powershell
+git pull
+npm install
+Copy-Item .env.example .env
+# Ajuste FFMPEG_PATH se o FFmpeg nao estiver no PATH
+npm start
+```
+
+Abra `http://127.0.0.1:8083` nesta maquina, ou `http://IP-DA-MAQUINA:8083` de outro PC na rede.
+Use Node.js 22+. Se a pagina mostrar "This page didn't load", veja o erro no terminal onde rodou `npm start`.
+
 ## Configuracao
 
 Crie um `.env` a partir do exemplo:

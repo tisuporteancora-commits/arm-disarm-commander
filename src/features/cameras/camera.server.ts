@@ -1,129 +1,23 @@
 import "@tanstack/react-start/server-only";
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 
-import { Cam } from "onvif";
-
-import { getFfmpegPath as resolveFfmpegBinary } from "./camera.stream.server";
+import {
+  createCamera as createCameraRecord,
+  deleteCamera as deleteCameraRecord,
+  getCameraById,
+  listCameras,
+  updateCamera as updateCameraRecord,
+} from "./camera.store.server";
 import type { Camera, CameraInput, CameraPublic, PtzAction } from "./camera.types";
 
-const STATE_FILE = join(process.cwd(), ".app-data", "alarm-state.json");
+export { getCameraById, listCameras } from "./camera.store.server";
+
+// Loaded on demand so a missing/broken `onvif` install does not crash route loading.
+type CamConstructor = typeof import("onvif").Cam;
+type CamInstance = InstanceType<CamConstructor>;
+
 const PTZ_SPEED = 0.55;
-
-type StoredState = {
-  cameras?: Camera[];
-  [key: string]: unknown;
-};
-
-type CamInstance = InstanceType<typeof Cam>;
-
-async function readStoredState(): Promise<StoredState> {
-  try {
-    const raw = await readFile(STATE_FILE, "utf-8");
-    return JSON.parse(raw) as StoredState;
-  } catch {
-    return {};
-  }
-}
-
-async function writeStoredState(state: StoredState): Promise<void> {
-  await mkdir(dirname(STATE_FILE), { recursive: true });
-  await writeFile(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`, "utf-8");
-}
-
-function hostFromRtsp(rtspUrl: string): string {
-  try {
-    const url = new URL(rtspUrl);
-    return url.hostname;
-  } catch {
-    return "";
-  }
-}
-
-function toPublic(camera: Camera): CameraPublic {
-  const { password: _password, ...rest } = camera;
-  return { ...rest, hasPassword: Boolean(camera.password) };
-}
-
-export function getFfmpegPath(): string {
-  return resolveFfmpegBinary();
-}
-
-export async function listCameras(): Promise<CameraPublic[]> {
-  const state = await readStoredState();
-  return (state.cameras ?? []).map(toPublic);
-}
-
-export async function getCameraById(id: string): Promise<Camera | undefined> {
-  const state = await readStoredState();
-  return (state.cameras ?? []).find((camera) => camera.id === id);
-}
-
-export async function createCamera(input: CameraInput): Promise<CameraPublic> {
-  const state = await readStoredState();
-  const cameras = state.cameras ?? [];
-  const onvifHost = input.onvifHost?.trim() || hostFromRtsp(input.rtspUrl);
-
-  if (!onvifHost) {
-    throw new Error("Informe o host ONVIF ou use uma URL RTSP com IP/hostname.");
-  }
-
-  const camera: Camera = {
-    id: crypto.randomUUID(),
-    name: input.name.trim(),
-    rtspUrl: input.rtspUrl.trim(),
-    onvifHost,
-    onvifPort: input.onvifPort ?? 80,
-    username: input.username.trim(),
-    password: input.password,
-    createdAt: new Date().toISOString(),
-  };
-
-  await writeStoredState({ ...state, cameras: [...cameras, camera] });
-  return toPublic(camera);
-}
-
-export async function updateCamera(
-  id: string,
-  input: CameraInput & { password?: string },
-): Promise<CameraPublic> {
-  const state = await readStoredState();
-  const cameras = state.cameras ?? [];
-  const index = cameras.findIndex((camera) => camera.id === id);
-
-  if (index < 0) {
-    throw new Error("Camera nao encontrada.");
-  }
-
-  const current = cameras[index];
-  const onvifHost = input.onvifHost?.trim() || hostFromRtsp(input.rtspUrl) || current.onvifHost;
-  const password = input.password?.trim() ? input.password : current.password;
-
-  const updated: Camera = {
-    ...current,
-    name: input.name.trim(),
-    rtspUrl: input.rtspUrl.trim(),
-    onvifHost,
-    onvifPort: input.onvifPort ?? current.onvifPort,
-    username: input.username.trim(),
-    password,
-  };
-
-  const next = [...cameras];
-  next[index] = updated;
-  await writeStoredState({ ...state, cameras: next });
-  dropOnvifSession(id);
-  return toPublic(updated);
-}
-
-export async function deleteCamera(id: string): Promise<void> {
-  const state = await readStoredState();
-  const cameras = (state.cameras ?? []).filter((camera) => camera.id !== id);
-  await writeStoredState({ ...state, cameras });
-  dropOnvifSession(id);
-}
 
 type OnvifSession = {
   key: string;
@@ -136,14 +30,22 @@ type OnvifSession = {
 const onvifSessions = new Map<string, OnvifSession>();
 const ONVIF_IDLE_MS = 60_000;
 
+async function loadOnvifCam(): Promise<CamConstructor> {
+  try {
+    const mod = await import("onvif");
+    return mod.Cam;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "modulo onvif indisponivel";
+    throw new Error(
+      `Pacote ONVIF nao carregou (${message}). Na pasta do projeto rode: npm install`,
+    );
+  }
+}
+
 function sessionKey(camera: Camera): string {
-  return [
-    camera.id,
-    camera.onvifHost,
-    camera.onvifPort,
-    camera.username,
-    camera.password,
-  ].join("|");
+  return [camera.id, camera.onvifHost, camera.onvifPort, camera.username, camera.password].join(
+    "|",
+  );
 }
 
 function resolveProfileToken(cam: CamInstance): string {
@@ -186,7 +88,8 @@ function touchOnvifSession(session: OnvifSession, cameraId: string) {
   }, ONVIF_IDLE_MS + 500);
 }
 
-function connectOnvif(camera: Camera): Promise<CamInstance> {
+async function connectOnvif(camera: Camera): Promise<CamInstance> {
+  const Cam = await loadOnvifCam();
   return new Promise((resolve, reject) => {
     const cam = new Cam(
       {
@@ -195,7 +98,6 @@ function connectOnvif(camera: Camera): Promise<CamInstance> {
         password: camera.password,
         port: camera.onvifPort || 9089,
         timeout: 8_000,
-        // Keep the host/port we configured (needed for cameras behind public IP/NAT).
         preserveAddress: true,
       },
       (error: Error | null) => {
@@ -280,6 +182,24 @@ function stopMove(cam: CamInstance, profileToken: string): Promise<void> {
   });
 }
 
+export async function createCamera(input: CameraInput): Promise<CameraPublic> {
+  return createCameraRecord(input);
+}
+
+export async function updateCamera(
+  id: string,
+  input: CameraInput & { password?: string },
+): Promise<CameraPublic> {
+  const updated = await updateCameraRecord(id, input);
+  dropOnvifSession(id);
+  return updated;
+}
+
+export async function deleteCamera(id: string): Promise<void> {
+  await deleteCameraRecord(id);
+  dropOnvifSession(id);
+}
+
 /** Opens (or reuses) the ONVIF session so the first PTZ click is already warm. */
 export async function warmupPtzSession(id: string): Promise<{ ready: true }> {
   const camera = await getCameraById(id);
@@ -325,7 +245,6 @@ export async function sendPtzCommand(id: string, action: PtzAction, speed = PTZ_
     await continuousMove(session.cam, { ...moveMap[action], profileToken: session.profileToken });
     touchOnvifSession(session, camera.id);
   } catch (error) {
-    // Drop stale session so the next command reconnects cleanly.
     dropOnvifSession(camera.id);
     const message = error instanceof Error ? error.message : "Falha no comando PTZ.";
     throw new Error(message);

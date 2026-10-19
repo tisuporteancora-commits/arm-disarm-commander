@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { getCameraById } from "@/features/cameras/camera.server";
+import { getCameraById } from "@/features/cameras/camera.store.server";
 import { waitForFrame } from "@/features/cameras/camera.stream.server";
 
 export const Route = createFileRoute("/api/cameras/$cameraId/stream")({
