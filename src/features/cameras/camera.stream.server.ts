@@ -35,7 +35,15 @@ function resolveFfmpegPath(): string {
     // ignore
   }
 
-  if (existsSync("C:/ffmpeg/bin/ffmpeg.exe")) return "C:/ffmpeg/bin/ffmpeg.exe";
+  const candidates = [
+    "C:/ffmpeg/bin/ffmpeg.exe",
+    "C:/ProgramData/chocolatey/bin/ffmpeg.exe",
+    join(process.env.LOCALAPPDATA ?? "", "Microsoft/WinGet/Links/ffmpeg.exe"),
+  ];
+  for (const candidate of candidates) {
+    if (candidate && existsSync(candidate)) return candidate;
+  }
+
   return "ffmpeg";
 }
 
@@ -156,7 +164,7 @@ function startSession(camera: Camera): LiveSession {
 
   child.on("error", (error) => {
     session.error = error.message.includes("ENOENT")
-      ? `FFmpeg nao encontrado (${ffmpeg}).`
+      ? `FFmpeg nao encontrado nesta maquina. Instale com: winget install Gyan.FFmpeg e no .env defina FFMPEG_PATH=C:/ffmpeg/bin/ffmpeg.exe (depois reinicie o app/PM2).`
       : `Falha no FFmpeg: ${error.message}`;
     sessions.delete(camera.id);
   });

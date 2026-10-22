@@ -108,7 +108,27 @@ async function readState(): Promise<AlarmState> {
 
 async function writeState(state: AlarmState): Promise<void> {
   await mkdir(dirname(STATE_FILE), { recursive: true });
-  await writeFile(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`, "utf-8");
+
+  // Preserve unknown keys (legacy fields) so other modules sharing this file
+  // are not wiped when alarm logs/settings are saved.
+  let existing: Record<string, unknown> = {};
+  try {
+    existing = JSON.parse(await readFile(STATE_FILE, "utf-8")) as Record<string, unknown>;
+  } catch {
+    existing = {};
+  }
+
+  const { cameras: _ignoredCameras, ...existingWithoutCameras } = existing;
+  const merged = {
+    ...existingWithoutCameras,
+    settings: state.settings,
+    logs: state.logs,
+    credentials: state.credentials,
+    users: state.users,
+    schedules: state.schedules,
+  };
+
+  await writeFile(STATE_FILE, `${JSON.stringify(merged, null, 2)}\n`, "utf-8");
 }
 
 export async function getStoredUsers(): Promise<AdminUser[]> {

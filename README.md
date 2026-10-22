@@ -109,8 +109,8 @@ Exemplo de RTSP Intelbras:
 rtsp://admin:SENHA@192.168.0.50:554/cam/realmonitor?channel=1&subtype=0
 ```
 
-As cameras ficam em `.app-data/alarm-state.json` (campo `cameras`). Senhas nao sao
-devolvidas na listagem publica.
+As cameras ficam em `.app-data/cameras-state.json` (arquivo separado do alarme).
+Senhas nao sao devolvidas na listagem publica.
 
 Endpoints:
 

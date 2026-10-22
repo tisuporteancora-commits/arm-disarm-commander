@@ -5,25 +5,61 @@ import { dirname, join } from "node:path";
 
 import type { Camera, CameraInput, CameraPublic } from "./camera.types";
 
-const STATE_FILE = join(process.cwd(), ".app-data", "alarm-state.json");
+const CAMERA_STATE_FILE = join(process.cwd(), ".app-data", "cameras-state.json");
+const LEGACY_ALARM_STATE_FILE = join(process.cwd(), ".app-data", "alarm-state.json");
 
-type StoredState = {
+type CameraState = {
+  cameras: Camera[];
+};
+
+type LegacyAlarmState = {
   cameras?: Camera[];
   [key: string]: unknown;
 };
 
-async function readStoredState(): Promise<StoredState> {
+async function readJsonFile<T>(path: string): Promise<T | null> {
   try {
-    const raw = await readFile(STATE_FILE, "utf-8");
-    return JSON.parse(raw) as StoredState;
+    const raw = await readFile(path, "utf-8");
+    return JSON.parse(raw) as T;
   } catch {
-    return {};
+    return null;
   }
 }
 
-async function writeStoredState(state: StoredState): Promise<void> {
-  await mkdir(dirname(STATE_FILE), { recursive: true });
-  await writeFile(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`, "utf-8");
+async function writeCameraState(state: CameraState): Promise<void> {
+  await mkdir(dirname(CAMERA_STATE_FILE), { recursive: true });
+  await writeFile(CAMERA_STATE_FILE, `${JSON.stringify(state, null, 2)}\n`, "utf-8");
+}
+
+/** Migrates cameras out of the shared alarm-state.json if needed. */
+async function readCameraState(): Promise<CameraState> {
+  const dedicated = await readJsonFile<CameraState>(CAMERA_STATE_FILE);
+  if (dedicated && Array.isArray(dedicated.cameras)) {
+    return { cameras: dedicated.cameras };
+  }
+
+  const legacy = await readJsonFile<LegacyAlarmState>(LEGACY_ALARM_STATE_FILE);
+  const legacyCameras = Array.isArray(legacy?.cameras) ? legacy.cameras : [];
+
+  if (legacyCameras.length > 0) {
+    const migrated = { cameras: legacyCameras };
+    await writeCameraState(migrated);
+
+    // Remove cameras from the shared alarm file so future alarm writes cannot wipe them.
+    if (legacy) {
+      const { cameras: _removed, ...rest } = legacy;
+      await mkdir(dirname(LEGACY_ALARM_STATE_FILE), { recursive: true });
+      await writeFile(
+        LEGACY_ALARM_STATE_FILE,
+        `${JSON.stringify(rest, null, 2)}\n`,
+        "utf-8",
+      );
+    }
+
+    return migrated;
+  }
+
+  return { cameras: [] };
 }
 
 function hostFromRtsp(rtspUrl: string): string {
@@ -41,18 +77,17 @@ function toPublic(camera: Camera): CameraPublic {
 }
 
 export async function listCameras(): Promise<CameraPublic[]> {
-  const state = await readStoredState();
-  return (state.cameras ?? []).map(toPublic);
+  const state = await readCameraState();
+  return state.cameras.map(toPublic);
 }
 
 export async function getCameraById(id: string): Promise<Camera | undefined> {
-  const state = await readStoredState();
-  return (state.cameras ?? []).find((camera) => camera.id === id);
+  const state = await readCameraState();
+  return state.cameras.find((camera) => camera.id === id);
 }
 
 export async function createCamera(input: CameraInput): Promise<CameraPublic> {
-  const state = await readStoredState();
-  const cameras = state.cameras ?? [];
+  const state = await readCameraState();
   const onvifHost = input.onvifHost?.trim() || hostFromRtsp(input.rtspUrl);
 
   if (!onvifHost) {
@@ -70,7 +105,7 @@ export async function createCamera(input: CameraInput): Promise<CameraPublic> {
     createdAt: new Date().toISOString(),
   };
 
-  await writeStoredState({ ...state, cameras: [...cameras, camera] });
+  await writeCameraState({ cameras: [...state.cameras, camera] });
   return toPublic(camera);
 }
 
@@ -78,15 +113,14 @@ export async function updateCamera(
   id: string,
   input: CameraInput & { password?: string },
 ): Promise<CameraPublic> {
-  const state = await readStoredState();
-  const cameras = state.cameras ?? [];
-  const index = cameras.findIndex((camera) => camera.id === id);
+  const state = await readCameraState();
+  const index = state.cameras.findIndex((camera) => camera.id === id);
 
   if (index < 0) {
     throw new Error("Camera nao encontrada.");
   }
 
-  const current = cameras[index];
+  const current = state.cameras[index];
   const onvifHost = input.onvifHost?.trim() || hostFromRtsp(input.rtspUrl) || current.onvifHost;
   const password = input.password?.trim() ? input.password : current.password;
 
@@ -100,14 +134,15 @@ export async function updateCamera(
     password,
   };
 
-  const next = [...cameras];
-  next[index] = updated;
-  await writeStoredState({ ...state, cameras: next });
+  const cameras = [...state.cameras];
+  cameras[index] = updated;
+  await writeCameraState({ cameras });
   return toPublic(updated);
 }
 
 export async function deleteCamera(id: string): Promise<void> {
-  const state = await readStoredState();
-  const cameras = (state.cameras ?? []).filter((camera) => camera.id !== id);
-  await writeStoredState({ ...state, cameras });
+  const state = await readCameraState();
+  await writeCameraState({
+    cameras: state.cameras.filter((camera) => camera.id !== id),
+  });
 }

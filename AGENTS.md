@@ -28,7 +28,7 @@
 - Use Node 22 or newer. Current TanStack dependencies require a newer Node than 20.18.
 - Start the app with `npm start`.
 - Runtime configuration comes from `.env` and server-side admin settings.
-- `.app-data/alarm-state.json` is created automatically at runtime for local settings and command logs. It is not a database and must not be committed.
+- `.app-data/alarm-state.json` is created automatically at runtime for local settings and command logs. Camera registrations live in `.app-data/cameras-state.json`. Neither is a database and must not be committed.
 
 ## Validation
 
