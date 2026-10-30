@@ -9,7 +9,13 @@ import {
   listCameras,
   updateCamera as updateCameraRecord,
 } from "./camera.store.server";
-import type { Camera, CameraInput, CameraPublic, PtzAction } from "./camera.types";
+import type {
+  Camera,
+  CameraInput,
+  CameraPreset,
+  CameraPublic,
+  PtzAction,
+} from "./camera.types";
 
 export { getCameraById, listCameras } from "./camera.store.server";
 
@@ -208,6 +214,79 @@ export async function warmupPtzSession(id: string): Promise<{ ready: true }> {
   }
   await getOnvifSession(camera);
   return { ready: true };
+}
+
+function readPresetEntries(cam: CamInstance): CameraPreset[] {
+  const presets = (cam as CamInstance & { presets?: Record<string, unknown> }).presets ?? {};
+  const entries: CameraPreset[] = [];
+
+  for (const [token, value] of Object.entries(presets)) {
+    const record = value as { name?: string | number; $?: { token?: string | number } };
+    const resolvedToken = String(record.$?.token ?? token);
+    const name = String(record.name ?? resolvedToken).trim() || resolvedToken;
+    if (!resolvedToken) continue;
+    entries.push({ token: resolvedToken, name });
+  }
+
+  return entries.sort((a, b) =>
+    a.name.localeCompare(b.name, "pt-BR", { numeric: true, sensitivity: "base" }),
+  );
+}
+
+export async function listCameraPresets(id: string): Promise<CameraPreset[]> {
+  const camera = await getCameraById(id);
+  if (!camera) {
+    throw new Error("Camera nao encontrada.");
+  }
+
+  let session: OnvifSession;
+  try {
+    session = await getOnvifSession(camera);
+  } catch (error) {
+    dropOnvifSession(camera.id);
+    throw error;
+  }
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      session.cam.getPresets({ profileToken: session.profileToken }, (error: Error | null) => {
+        if (error) reject(error);
+        else resolve();
+      });
+    });
+    touchOnvifSession(session, camera.id);
+    return readPresetEntries(session.cam);
+  } catch (error) {
+    dropOnvifSession(camera.id);
+    const message = error instanceof Error ? error.message : "Falha ao listar presets.";
+    throw new Error(message);
+  }
+}
+
+export async function gotoCameraPreset(id: string, presetToken: string): Promise<void> {
+  const camera = await getCameraById(id);
+  if (!camera) {
+    throw new Error("Camera nao encontrada.");
+  }
+
+  const session = await getOnvifSession(camera);
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      session.cam.gotoPreset(
+        { profileToken: session.profileToken, preset: String(presetToken) },
+        (error: Error | null) => {
+          if (error) reject(error);
+          else resolve();
+        },
+      );
+    });
+    touchOnvifSession(session, camera.id);
+  } catch (error) {
+    dropOnvifSession(camera.id);
+    const message = error instanceof Error ? error.message : "Falha ao ir para o preset.";
+    throw new Error(message);
+  }
 }
 
 export async function sendPtzCommand(id: string, action: PtzAction, speed = PTZ_SPEED): Promise<void> {

@@ -23,3 +23,8 @@ export type CameraPublic = Omit<Camera, "password"> & {
 };
 
 export type PtzAction = "up" | "down" | "left" | "right" | "zoomIn" | "zoomOut" | "stop";
+
+export type CameraPreset = {
+  token: string;
+  name: string;
+};

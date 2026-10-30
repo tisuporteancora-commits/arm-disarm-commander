@@ -31,3 +31,9 @@ export const ptzActionSchema = z.object({
   action: z.enum(["up", "down", "left", "right", "zoomIn", "zoomOut", "stop"]),
   speed: z.number().min(0.05).max(1).optional(),
 });
+
+export const gotoPresetSchema = z.object({
+  id: z.string().min(1),
+  // Intelbras/ONVIF may return numeric tokens; coerce to string for SOAP.
+  presetToken: z.coerce.string().trim().min(1, "Informe o preset."),
+});

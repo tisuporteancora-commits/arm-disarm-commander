@@ -5,11 +5,14 @@ import {
   cameraIdSchema,
   cameraInputSchema,
   cameraUpdateSchema,
+  gotoPresetSchema,
   ptzActionSchema,
 } from "./camera.schemas";
 import {
   createCamera,
   deleteCamera,
+  gotoCameraPreset,
+  listCameraPresets,
   listCameras,
   sendPtzCommand,
   updateCamera,
@@ -64,4 +67,19 @@ export const warmupPtzSessionFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     preventSensitiveCaching();
     return warmupPtzSession(data.id);
+  });
+
+export const listCameraPresetsFn = createServerFn({ method: "POST" })
+  .validator(cameraIdSchema)
+  .handler(async ({ data }) => {
+    preventSensitiveCaching();
+    return listCameraPresets(data.id);
+  });
+
+export const gotoCameraPresetFn = createServerFn({ method: "POST" })
+  .validator(gotoPresetSchema)
+  .handler(async ({ data }) => {
+    preventSensitiveCaching();
+    await gotoCameraPreset(data.id, data.presetToken);
+    return { success: true };
   });
